@@ -1,0 +1,1 @@
+df.to_json("public/yeni_tokenlar.json", orient="records")
