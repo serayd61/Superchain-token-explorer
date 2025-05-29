@@ -1,3 +1,46 @@
+# 🛰️ Base Token Explorer
+
+A dashboard that tracks **new token deployments** on the [Base](https://base.org) blockchain, including:
+
+- ✅ Liquidity Pool (LP) status
+- ✅ First-hour price action chart
+- ✅ Top 5 holders per token
+- ✅ CSV export
+- ✅ Real-time updates (coming soon)
+
+---
+
+## 🚀 Features
+
+- 🔎 Scans the last 50 blocks on Base for newly deployed contracts
+- 🧪 Checks LP existence via AlienBase (UniswapV2-style) factory
+- 📉 Displays sparkline chart for first-hour price movement
+- 📬 Future plans: alerts via email / Telegram for new deployments
+
+---
+
+## 🛠️ Technologies
+
+**Frontend**:
+- [Next.js 15](https://nextjs.org/)
+- TypeScript
+- Tailwind CSS
+- Recharts (for sparkline graphs)
+
+**Backend**:
+- Python 3
+- Web3.py
+- Pandas
+
+---
+
+## ⚙️ Setup
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/serayd61/base-token-explorer.git
+cd base-token-explorer
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
