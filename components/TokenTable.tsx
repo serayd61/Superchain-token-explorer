@@ -1,3 +1,4 @@
+'use client'
 // components/TokenTable.tsx
 import { useEffect, useState } from "react"
 import * as Tooltip from "@radix-ui/react-tooltip"
