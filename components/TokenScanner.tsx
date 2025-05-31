@@ -14,6 +14,7 @@ interface ScanResult {
     success_rate: number;
   };
   results: TokenContract[];
+  error?: string;
 }
 
 interface TokenContract {
