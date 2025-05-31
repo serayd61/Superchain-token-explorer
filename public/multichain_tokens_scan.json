@@ -1,0 +1,180 @@
+{
+  "scan_time": "2025-05-31T12:49:18.381503",
+  "chains": {
+    "base": [
+      {
+        "chain": "base",
+        "chain_id": 8453,
+        "block": 30949586,
+        "hash": "16b16446a328185e6a3f02517f1230e7bf7f5245dd097be81f86ffd32863d5b0",
+        "deployer": "0xA0896cD680CC62f0308e0E8839261D8D0Ff8F9a3",
+        "contract_address": "0xf15a9df61fBF3A258C4661ABd277490c04dc8e68",
+        "timestamp": "2025-05-31T10:48:39",
+        "metadata": {
+          "name": "Unknown",
+          "symbol": "UNKNOWN",
+          "decimals": 18,
+          "total_supply": 0
+        },
+        "lp_info": {
+          "v2": false,
+          "v3": false,
+          "status": "NO"
+        },
+        "dex_data": {}
+      },
+      {
+        "chain": "base",
+        "chain_id": 8453,
+        "block": 30949590,
+        "hash": "bd24e4dc9d2546d28a208382f0730a7cae2032cb6237f5141b25a8ff01793b60",
+        "deployer": "0x1c5384372078D6657CC917Dc72430b6FDc3954e1",
+        "contract_address": "0xE1907c872EC8DF615b5730A15549C43A84c5f240",
+        "timestamp": "2025-05-31T10:48:47",
+        "metadata": {
+          "name": "Unknown",
+          "symbol": "UNKNOWN",
+          "decimals": 18,
+          "total_supply": 0
+        },
+        "lp_info": {
+          "v2": false,
+          "v3": false,
+          "status": "NO"
+        },
+        "dex_data": {}
+      }
+    ],
+    "arbitrum": [],
+    "ethereum": [
+      {
+        "chain": "ethereum",
+        "chain_id": 1,
+        "block": 22602211,
+        "hash": "8dacafcb25877b359ab3e83fbfec0fa59461b1c7ef7fd268f8a70ffd59f74c22",
+        "deployer": "0xeC29346883cDDca45a56982f1A559238130A8C02",
+        "contract_address": "0xe0c563f1aD686dae5B473A48C65dDF929D744c48",
+        "timestamp": "2025-05-31T10:47:47",
+        "metadata": {
+          "name": "Unknown",
+          "symbol": "UNKNOWN",
+          "decimals": 18,
+          "total_supply": 0
+        },
+        "lp_info": {
+          "v2": false,
+          "v3": false,
+          "status": "NO"
+        },
+        "dex_data": {}
+      },
+      {
+        "chain": "ethereum",
+        "chain_id": 1,
+        "block": 22602212,
+        "hash": "9491b26fe5068be6205ef8849a914072cbb245957f01df4b98abdabfc82a03af",
+        "deployer": "0xEe29d7E7935005778C4ac25cEA5EE8af5C78A78d",
+        "contract_address": "0x4aB39069d5d53D8BE7E6Fa144704cACDF9AE9c0b",
+        "timestamp": "2025-05-31T10:47:59",
+        "metadata": {
+          "name": "EthCC[8]",
+          "symbol": "EthCC[8]",
+          "decimals": 9,
+          "total_supply": 1000000000.0
+        },
+        "lp_info": {
+          "v2": true,
+          "v3": false,
+          "status": "YES"
+        },
+        "dex_data": {}
+      }
+    ]
+  },
+  "flattened": [
+    {
+      "chain": "base",
+      "chain_id": 8453,
+      "block": 30949586,
+      "hash": "16b16446a328185e6a3f02517f1230e7bf7f5245dd097be81f86ffd32863d5b0",
+      "deployer": "0xA0896cD680CC62f0308e0E8839261D8D0Ff8F9a3",
+      "contract_address": "0xf15a9df61fBF3A258C4661ABd277490c04dc8e68",
+      "timestamp": "2025-05-31T10:48:39",
+      "metadata": {
+        "name": "Unknown",
+        "symbol": "UNKNOWN",
+        "decimals": 18,
+        "total_supply": 0
+      },
+      "lp_info": {
+        "v2": false,
+        "v3": false,
+        "status": "NO"
+      },
+      "dex_data": {}
+    },
+    {
+      "chain": "base",
+      "chain_id": 8453,
+      "block": 30949590,
+      "hash": "bd24e4dc9d2546d28a208382f0730a7cae2032cb6237f5141b25a8ff01793b60",
+      "deployer": "0x1c5384372078D6657CC917Dc72430b6FDc3954e1",
+      "contract_address": "0xE1907c872EC8DF615b5730A15549C43A84c5f240",
+      "timestamp": "2025-05-31T10:48:47",
+      "metadata": {
+        "name": "Unknown",
+        "symbol": "UNKNOWN",
+        "decimals": 18,
+        "total_supply": 0
+      },
+      "lp_info": {
+        "v2": false,
+        "v3": false,
+        "status": "NO"
+      },
+      "dex_data": {}
+    },
+    {
+      "chain": "ethereum",
+      "chain_id": 1,
+      "block": 22602211,
+      "hash": "8dacafcb25877b359ab3e83fbfec0fa59461b1c7ef7fd268f8a70ffd59f74c22",
+      "deployer": "0xeC29346883cDDca45a56982f1A559238130A8C02",
+      "contract_address": "0xe0c563f1aD686dae5B473A48C65dDF929D744c48",
+      "timestamp": "2025-05-31T10:47:47",
+      "metadata": {
+        "name": "Unknown",
+        "symbol": "UNKNOWN",
+        "decimals": 18,
+        "total_supply": 0
+      },
+      "lp_info": {
+        "v2": false,
+        "v3": false,
+        "status": "NO"
+      },
+      "dex_data": {}
+    },
+    {
+      "chain": "ethereum",
+      "chain_id": 1,
+      "block": 22602212,
+      "hash": "9491b26fe5068be6205ef8849a914072cbb245957f01df4b98abdabfc82a03af",
+      "deployer": "0xEe29d7E7935005778C4ac25cEA5EE8af5C78A78d",
+      "contract_address": "0x4aB39069d5d53D8BE7E6Fa144704cACDF9AE9c0b",
+      "timestamp": "2025-05-31T10:47:59",
+      "metadata": {
+        "name": "EthCC[8]",
+        "symbol": "EthCC[8]",
+        "decimals": 9,
+        "total_supply": 1000000000.0
+      },
+      "lp_info": {
+        "v2": true,
+        "v3": false,
+        "status": "YES"
+      },
+      "dex_data": {}
+    }
+  ]
+}

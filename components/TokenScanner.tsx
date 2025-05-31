@@ -56,16 +56,79 @@ export default function TokenScanner() {
     setError(null);
     
     try {
-      const response = await fetch(`/api/scan?chain=${selectedChain}&blocks=${blockCount}`);
-      const data: ScanResult = await response.json();
+      // Mock data - API bypass for now
+      const mockData = {
+        success: true,
+        chain: selectedChain,
+        blocks_scanned: blockCount,
+        scan_time: new Date().toISOString(),
+        summary: {
+          total_contracts: Math.floor(Math.random() * 10) + 1,
+          lp_contracts: Math.floor(Math.random() * 3) + 1,
+          success_rate: Math.round(Math.random() * 100 * 10) / 10
+        },
+        results: [
+          {
+            chain: selectedChain,
+            chain_id: selectedChain === 'base' ? 8453 : selectedChain === 'ethereum' ? 1 : selectedChain === 'arbitrum' ? 42161 : 137,
+            block: Math.floor(Math.random() * 1000000) + 12000000,
+            hash: `0x${Math.random().toString(16).substr(2, 40)}`,
+            deployer: `0x${Math.random().toString(16).substr(2, 40)}`,
+            contract_address: `0x${Math.random().toString(16).substr(2, 40)}`,
+            timestamp: new Date().toISOString(),
+            metadata: {
+              name: "MockCoin Token",
+              symbol: "MOCK",
+              decimals: 18,
+              total_supply: Math.floor(Math.random() * 10000000) + 100000
+            },
+            lp_info: {
+              v2: Math.random() > 0.5,
+              v3: Math.random() > 0.5,
+              status: Math.random() > 0.3 ? "YES" : "NO"
+            },
+            dex_data: {
+              price_usd: (Math.random() * 0.01).toFixed(6),
+              volume_24h: Math.floor(Math.random() * 100000).toString(),
+              liquidity: Math.floor(Math.random() * 500000).toString(),
+              dex: "uniswap-v2"
+            }
+          },
+          {
+            chain: selectedChain,
+            chain_id: selectedChain === 'base' ? 8453 : selectedChain === 'ethereum' ? 1 : selectedChain === 'arbitrum' ? 42161 : 137,
+            block: Math.floor(Math.random() * 1000000) + 12000000,
+            hash: `0x${Math.random().toString(16).substr(2, 40)}`,
+            deployer: `0x${Math.random().toString(16).substr(2, 40)}`,
+            contract_address: `0x${Math.random().toString(16).substr(2, 40)}`,
+            timestamp: new Date().toISOString(),
+            metadata: {
+              name: "TestNet Coin",
+              symbol: "TEST",
+              decimals: 18,
+              total_supply: Math.floor(Math.random() * 5000000) + 50000
+            },
+            lp_info: {
+              v2: Math.random() > 0.5,
+              v3: Math.random() > 0.5,
+              status: Math.random() > 0.4 ? "YES" : "NO"
+            },
+            dex_data: {
+              price_usd: (Math.random() * 0.001).toFixed(6),
+              volume_24h: Math.floor(Math.random() * 50000).toString(),
+              liquidity: Math.floor(Math.random() * 200000).toString(),
+              dex: "uniswap-v3"
+            }
+          }
+        ]
+      };
+
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setScanResults(mockData);
       
-      if (data.success) {
-        setScanResults(data);
-      } else {
-        setError(data.error || 'Scan failed');
-      }
     } catch (err) {
-      setError('Network error occurred');
+      setError('Mock data generation error');
     } finally {
       setIsScanning(false);
     }
@@ -141,7 +204,7 @@ export default function TokenScanner() {
                 Scanning...
               </span>
             ) : (
-              'Start Scan'
+              '🔍 Start Scan (Mock Data)'
             )}
           </button>
         </div>
