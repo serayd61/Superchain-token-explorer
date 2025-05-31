@@ -1,0 +1,263 @@
+'use client';
+
+import { useState } from 'react';
+import ChainSelector from './ChainSelector';
+
+interface ScanResult {
+  success: boolean;
+  chain: string;
+  blocks_scanned: number;
+  scan_time: string;
+  summary: {
+    total_contracts: number;
+    lp_contracts: number;
+    success_rate: number;
+  };
+  results: TokenContract[];
+}
+
+interface TokenContract {
+  chain: string;
+  chain_id: number;
+  block: number;
+  hash: string;
+  deployer: string;
+  contract_address: string;
+  timestamp: string;
+  metadata: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    total_supply: number;
+  };
+  lp_info: {
+    v2: boolean;
+    v3: boolean;
+    status: string;
+  };
+  dex_data?: {
+    price_usd: string;
+    volume_24h: string;
+    liquidity: string;
+    dex: string;
+  };
+}
+
+export default function TokenScanner() {
+  const [selectedChain, setSelectedChain] = useState('base');
+  const [blockCount, setBlockCount] = useState(10);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResults, setScanResults] = useState<ScanResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleScan = async () => {
+    setIsScanning(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`/api/scan?chain=${selectedChain}&blocks=${blockCount}`);
+      const data: ScanResult = await response.json();
+      
+      if (data.success) {
+        setScanResults(data);
+      } else {
+        setError(data.error || 'Scan failed');
+      }
+    } catch (err) {
+      setError('Network error occurred');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const formatTimeAgo = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+    return num.toFixed(0);
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">🌐 Multi-Chain Token Scanner</h2>
+        
+        {/* Controls */}
+        <div className="flex flex-wrap gap-4 items-end mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Blockchain
+            </label>
+            <ChainSelector 
+              selectedChain={selectedChain}
+              onChainChange={setSelectedChain}
+              isLoading={isScanning}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Blocks to Scan
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={blockCount}
+              onChange={(e) => setBlockCount(parseInt(e.target.value) || 10)}
+              disabled={isScanning}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            />
+          </div>
+          
+          <button
+            onClick={handleScan}
+            disabled={isScanning}
+            className={`
+              px-6 py-2 rounded-lg font-medium transition-colors duration-200
+              ${isScanning 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+              } text-white
+            `}
+          >
+            {isScanning ? (
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Scanning...
+              </span>
+            ) : (
+              'Start Scan'
+            )}
+          </button>
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-red-700 font-medium">Error: {error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Stats */}
+        {scanResults && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-blue-600">{scanResults.summary.total_contracts}</div>
+              <div className="text-sm text-gray-600">Total Contracts</div>
+            </div>
+            <div className="bg-green-50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-green-600">{scanResults.summary.lp_contracts}</div>
+              <div className="text-sm text-gray-600">With LP</div>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-purple-600">{scanResults.summary.success_rate.toFixed(1)}%</div>
+              <div className="text-sm text-gray-600">Success Rate</div>
+            </div>
+            <div className="bg-orange-50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-orange-600">{scanResults.blocks_scanned}</div>
+              <div className="text-sm text-gray-600">Blocks Scanned</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Results Table */}
+      {scanResults && scanResults.results.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Recent Token Deployments on {scanResults.chain.charAt(0).toUpperCase() + scanResults.chain.slice(1)}
+            </h3>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LP Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supply</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {scanResults.results.map((token, index) => (
+                  <tr key={token.hash} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{token.metadata.symbol}</div>
+                        <div className="text-sm text-gray-500">{token.metadata.name}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-mono text-gray-900">
+                        {token.contract_address.slice(0, 6)}...{token.contract_address.slice(-4)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`
+                        inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                        ${token.lp_info.status === 'YES' 
+                          ? 'bg-green-100 text-green-800' 
+                          : token.lp_info.status === 'NO'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                        }
+                      `}>
+                        {token.lp_info.status === 'YES' ? '✅ Has LP' : token.lp_info.status === 'NO' ? '❌ No LP' : '⚠️ Error'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {token.dex_data?.price_usd ? `$${parseFloat(token.dex_data.price_usd).toFixed(6)}` : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatNumber(token.metadata.total_supply)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatTimeAgo(token.timestamp)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* No Results */}
+      {scanResults && scanResults.results.length === 0 && (
+        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="text-gray-400 text-6xl mb-4">🔍</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Contracts Found</h3>
+          <p className="text-gray-500">
+            No new contract deployments found in the last {blockCount} blocks on {selectedChain}.
+            Try increasing the block count or selecting a different chain.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
