@@ -1,12 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const chain = searchParams.get('chain') || 'base';
-    const blocks = parseInt(searchParams.get('blocks') || '5');
+    const url = new URL(request.url);
+    const chain = url.searchParams.get('chain') || 'base';
+    const blocks = parseInt(url.searchParams.get('blocks') || '5');
 
-    // Mock response for testing
     const mockResponse = {
       success: true,
       chain: chain,
@@ -47,22 +44,11 @@ export async function GET(request: NextRequest) {
       ]
     };
 
-    return NextResponse.json(mockResponse);
+    return Response.json(mockResponse);
   } catch (error) {
-    return NextResponse.json(
+    return Response.json(
       { success: false, error: 'API error occurred' },
       { status: 500 }
     );
   }
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
 }
