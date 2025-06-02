@@ -1,0 +1,438 @@
+import { ethers } from 'ethers';
+import { NextRequest, NextResponse } from 'next/server';
+
+// Chain yapılandırmaları
+const CHAIN_CONFIGS = {
+  // OP Stack Chains
+  base: {
+    isOpStack: true,
+    chainId: 8453,
+    category: 'op-stack',
+    explorer: 'https://basescan.org',
+    rpcUrl: process.env.BASE_RPC_URL || 'https://1rpc.io/base',
+    wethAddress: '0x4200000000000000000000000000000000000006',
+    uniswapV2Factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
+    uniswapV3Factory: '0x33128a8fC17869897dcE68Ed026d694621f6FDfD'
+  },
+  optimism: {
+    isOpStack: true,
+    chainId: 10,
+    category: 'op-stack',
+    explorer: 'https://optimistic.etherscan.io',
+    rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://1rpc.io/op',
+    wethAddress: '0x4200000000000000000000000000000000000006',
+    uniswapV2Factory: '0x0c4c792E6E01f6B8c2C44c66bB69f4C2c2039b26',
+    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+  },
+  mode: {
+    isOpStack: true,
+    chainId: 34443,
+    category: 'op-stack',
+    explorer: 'https://explorer.mode.network',
+    rpcUrl: process.env.MODE_RPC_URL || 'https://mainnet.mode.network',
+    wethAddress: '0x4200000000000000000000000000000000000006',
+    uniswapV2Factory: '0x5C7BC93471A28D5a29C6052a8E4B238009de6ac6',
+    uniswapV3Factory: '0x6BDED42c6DA8FBf0d2bA55B2fa120C5e0c8D7891'
+  },
+  ethereum: {
+    isOpStack: false,
+    chainId: 1,
+    category: 'ethereum',
+    explorer: 'https://etherscan.io',
+    rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://cloudflare-eth.com',
+    wethAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    uniswapV2Factory: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
+    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+  },
+  arbitrum: {
+    isOpStack: false,
+    chainId: 42161,
+    category: 'other',
+    explorer: 'https://arbiscan.io',
+    rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+    wethAddress: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+    uniswapV2Factory: '0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9',
+    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+  },
+  polygon: {
+    isOpStack: false,
+    chainId: 137,
+    category: 'other',
+    explorer: 'https://polygonscan.com',
+    rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
+    wethAddress: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
+    uniswapV2Factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32',
+    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+  }
+};
+
+// ABI'ler
+const FACTORY_V2_ABI = [
+  {
+    "constant": true,
+    "inputs": [
+      {"internalType": "address", "name": "tokenA", "type": "address"},
+      {"internalType": "address", "name": "tokenB", "type": "address"}
+    ],
+    "name": "getPair",
+    "outputs": [{"internalType": "address", "name": "pair", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
+const FACTORY_V3_ABI = [
+  {
+    "constant": true,
+    "inputs": [
+      {"internalType": "address", "name": "tokenA", "type": "address"},
+      {"internalType": "address", "name": "tokenB", "type": "address"},
+      {"internalType": "uint24", "name": "fee", "type": "uint24"}
+    ],
+    "name": "getPool",
+    "outputs": [{"internalType": "address", "name": "pool", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
+const ERC20_ABI = [
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "name",
+    "outputs": [{"name": "", "type": "string"}],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "symbol",
+    "outputs": [{"name": "", "type": "string"}],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [{"name": "", "type": "uint8"}],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [{"name": "", "type": "uint256"}],
+    "type": "function"
+  }
+];
+
+// V3 fee tiers
+const V3_FEES = [500, 3000, 10000]; // 0.05%, 0.3%, 1%
+
+async function checkLPExists(
+  provider: ethers.Provider,
+  tokenAddress: string,
+  chainConfig: any
+): Promise<{ v2: boolean; v3: boolean; status: string }> {
+  try {
+    let v2Exists = false;
+    let v3Exists = false;
+
+    // V2 kontrolü
+    if (chainConfig.uniswapV2Factory !== '0x0000000000000000000000000000000000000000') {
+      const factoryV2 = new ethers.Contract(
+        chainConfig.uniswapV2Factory,
+        FACTORY_V2_ABI,
+        provider
+      );
+      
+      const pairAddress = await factoryV2.getPair(tokenAddress, chainConfig.wethAddress);
+      v2Exists = pairAddress !== ethers.ZeroAddress;
+    }
+
+    // V3 kontrolü
+    if (chainConfig.uniswapV3Factory !== '0x0000000000000000000000000000000000000000') {
+      const factoryV3 = new ethers.Contract(
+        chainConfig.uniswapV3Factory,
+        FACTORY_V3_ABI,
+        provider
+      );
+
+      for (const fee of V3_FEES) {
+        try {
+          const poolAddress = await factoryV3.getPool(tokenAddress, chainConfig.wethAddress, fee);
+          if (poolAddress !== ethers.ZeroAddress) {
+            v3Exists = true;
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+
+    return {
+      v2: v2Exists,
+      v3: v3Exists,
+      status: (v2Exists || v3Exists) ? 'YES' : 'NO'
+    };
+  } catch (error) {
+    console.error('LP check error:', error);
+    return { v2: false, v3: false, status: 'ERROR' };
+  }
+}
+
+async function getTokenMetadata(
+  provider: ethers.Provider,
+  tokenAddress: string
+): Promise<any> {
+  try {
+    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+    
+    const [name, symbol, decimals, totalSupply] = await Promise.all([
+      contract.name().catch(() => 'Unknown'),
+      contract.symbol().catch(() => 'UNKNOWN'),
+      contract.decimals().catch(() => 18),
+      contract.totalSupply().catch(() => ethers.getBigInt(0))
+    ]);
+
+    return {
+      name,
+      symbol,
+      decimals,
+      total_supply: Number(ethers.formatUnits(totalSupply, decimals))
+    };
+  } catch (error) {
+    console.error('Token metadata error:', error);
+    return {
+      name: 'Unknown',
+      symbol: 'UNKNOWN',
+      decimals: 18,
+      total_supply: 0
+    };
+  }
+}
+
+async function fetchDexScreenerData(tokenAddress: string, chainId: number): Promise<any> {
+  try {
+    const response = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`,
+      { next: { revalidate: 60 } } // Cache for 1 minute
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.pairs && data.pairs.length > 0) {
+        const chainPairs = data.pairs.filter((p: any) => 
+          p.chainId === String(chainId)
+        );
+        
+        if (chainPairs.length > 0) {
+          const pair = chainPairs[0];
+          return {
+            price_usd: pair.priceUsd || '0',
+            volume_24h: pair.volume?.h24 || '0',
+            liquidity: pair.liquidity?.usd || '0',
+            pair_address: pair.pairAddress || '',
+            dex: pair.dexId || 'unknown'
+          };
+        }
+      }
+    }
+    return {};
+  } catch (error) {
+    console.error('DexScreener API error:', error);
+    return {};
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const chain = searchParams.get('chain') || 'base';
+    const blocks = Math.min(parseInt(searchParams.get('blocks') || '5'), 100); // Max 100 blocks
+    const opStackOnly = searchParams.get('opStackOnly') === 'true';
+
+    // Chain yapılandırmasını al
+    const chainConfig = CHAIN_CONFIGS[chain as keyof typeof CHAIN_CONFIGS];
+    
+    if (!chainConfig) {
+      return NextResponse.json(
+        { success: false, error: `Unsupported chain: ${chain}` },
+        { status: 400 }
+      );
+    }
+
+    // Provider oluştur
+    console.log(`Connecting to ${chain} RPC: ${chainConfig.rpcUrl}`);
+    const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+    
+    // Bağlantıyı test et
+    let latestBlock;
+    try {
+      latestBlock = await provider.getBlockNumber();
+      console.log(`Connected to ${chain}. Latest block: ${latestBlock}`);
+    } catch (error) {
+      console.error(`Failed to connect to ${chain} RPC ${chainConfig.rpcUrl}:`, error.message);
+      
+      // Alternatif RPC'ler dene
+      const alternativeRPCs = {
+        polygon: ['https://polygon-rpc.com', 'https://rpc.ankr.com/polygon'],
+        ethereum: ['https://cloudflare-eth.com', 'https://rpc.ankr.com/eth'],
+        base: ['https://mainnet.base.org', 'https://base-mainnet.public.blastapi.io']
+      };
+      
+      if (alternativeRPCs[chain]) {
+        for (const altRPC of alternativeRPCs[chain]) {
+          try {
+            console.log(`Trying alternative RPC: ${altRPC}`);
+            const altProvider = new ethers.JsonRpcProvider(altRPC);
+            latestBlock = await altProvider.getBlockNumber();
+            console.log(`Success with alternative RPC: ${altRPC}`);
+            // Replace provider with working one
+            Object.assign(provider, altProvider);
+            break;
+          } catch (altError) {
+            console.error(`Alternative RPC ${altRPC} also failed`);
+          }
+        }
+      }
+      
+      if (!latestBlock) {
+        return NextResponse.json({
+          success: false,
+          error: `Cannot connect to ${chain} network. All RPC endpoints failed. Please try again later.`
+        }, { status: 503 });
+      }
+    }
+    
+    const startBlock = latestBlock - blocks;
+    
+    console.log(`Scanning ${chain} from block ${startBlock} to ${latestBlock}`);
+    
+    const results = [];
+    let totalTxCount = 0;
+    let deploymentTxCount = 0;
+    
+    // Blokları tara
+    for (let blockNum = startBlock; blockNum <= latestBlock; blockNum++) {
+      try {
+        const block = await provider.getBlock(blockNum, true);
+        if (!block || !block.transactions) continue;
+        
+        console.log(`Block ${blockNum}: ${block.transactions.length} transactions`);
+        totalTxCount += block.transactions.length;
+        
+        // Transaction'ları kontrol et
+        for (const tx of block.transactions) {
+          // Contract deployment kontrolü - to adresi null ise deployment'tır
+          if (!tx.to || tx.to === null) {
+            deploymentTxCount++;
+            console.log(`Found deployment tx at block ${blockNum}: ${tx.hash}`);
+            
+            try {
+              // Transaction receipt'ini al - gerçek contract adresi burada
+              const receipt = await provider.getTransactionReceipt(tx.hash);
+              
+              if (receipt && receipt.contractAddress) {
+                const contractAddress = receipt.contractAddress;
+                console.log(`New contract found at block ${blockNum}: ${contractAddress}`);
+                
+                // Basit bir bytecode kontrolü ile token olup olmadığını anlamaya çalış
+                const bytecode = await provider.getCode(contractAddress);
+                
+                // Eğer bytecode varsa (boş değilse) devam et
+                if (bytecode && bytecode !== '0x' && bytecode.length > 10) {
+                  console.log(`Contract ${contractAddress} has bytecode length: ${bytecode.length}`);
+                  
+                  // Token metadata'sını al
+                  const metadata = await getTokenMetadata(provider, contractAddress);
+                  
+                  // Daha gevşek kriterler - sadece bytecode olması yeterli
+                  console.log(`Contract metadata - Name: ${metadata.name}, Symbol: ${metadata.symbol}`);
+                  
+                  // LP kontrolü
+                  const lpInfo = await checkLPExists(provider, contractAddress, chainConfig);
+                  
+                  // DexScreener verisi (sadece LP varsa)
+                  let dexData = {};
+                  if (lpInfo.status === 'YES') {
+                    dexData = await fetchDexScreenerData(contractAddress, chainConfig.chainId);
+                  }
+                  
+                  results.push({
+                    chain: chain,
+                    chain_id: chainConfig.chainId,
+                    is_op_stack: chainConfig.isOpStack,
+                    block: blockNum,
+                    hash: tx.hash,
+                    deployer: tx.from,
+                    contract_address: contractAddress,
+                    timestamp: new Date(block.timestamp * 1000).toISOString(),
+                    metadata,
+                    lp_info: lpInfo,
+                    dex_data: dexData,
+                    explorer_url: `${chainConfig.explorer}/address/${contractAddress}`
+                  });
+                }
+              } else {
+                // Factory pattern deployment kontrolü
+                console.log(`Checking tx ${tx.hash} for factory deployment...`);
+              }
+            } catch (receiptError) {
+              console.error(`Error getting receipt for tx ${tx.hash}:`, receiptError);
+              continue;
+            }
+          }
+      } catch (blockError) {
+        console.error(`Error processing block ${blockNum}:`, blockError);
+        continue;
+      }
+    }
+    
+    console.log(`Scan complete. Total txs: ${totalTxCount}, Deployment txs: ${deploymentTxCount}, Contracts found: ${results.length}`);
+    
+    // OP Stack filtresi
+    const filteredResults = opStackOnly 
+      ? results.filter(r => r.is_op_stack) 
+      : results;
+    
+    const lpCount = filteredResults.filter(r => r.lp_info.status === 'YES').length;
+    
+    return NextResponse.json({
+      success: true,
+      chain: chain,
+      blocks_scanned: blocks,
+      scan_time: new Date().toISOString(),
+      chain_info: {
+        is_op_stack: chainConfig.isOpStack,
+        category: chainConfig.category,
+        chain_id: chainConfig.chainId
+      },
+      summary: {
+        total_contracts: filteredResults.length,
+        lp_contracts: lpCount,
+        success_rate: filteredResults.length > 0 
+          ? Number(((lpCount / filteredResults.length) * 100).toFixed(1)) 
+          : 0,
+        op_stack_contracts: filteredResults.filter(r => r.is_op_stack).length
+      },
+      superchain_info: {
+        total_op_chains: Object.values(CHAIN_CONFIGS).filter(c => c.isOpStack).length,
+        current_chain_op_stack: chainConfig.isOpStack
+      },
+      results: filteredResults
+    });
+    
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Server error' 
+      },
+      { status: 500 }
+    );
+  }
+}

@@ -1,25 +1,81 @@
 'use client';
 
 import { useState } from 'react';
-import ChainSelector from './ChainSelector';
 
-interface ScanResult {
-  success: boolean;
-  chain: string;
-  blocks_scanned: number;
-  scan_time: string;
-  summary: {
-    total_contracts: number;
-    lp_contracts: number;
-    success_rate: number;
-  };
-  results: TokenContract[];
-  error?: string;
+interface ChainOption {
+  id: string;
+  name: string;
+  displayName: string;
+  color: string;
+  icon: string;
+  isOpStack: boolean;
 }
+
+const CHAINS: ChainOption[] = [
+  // OP Stack Chains
+  {
+    id: 'base',
+    name: 'base',
+    displayName: 'Base',
+    color: 'bg-blue-500',
+    icon: '🔵',
+    isOpStack: true
+  },
+  {
+    id: 'optimism',
+    name: 'optimism',
+    displayName: 'OP Mainnet',
+    color: 'bg-red-500',
+    icon: '🔴',
+    isOpStack: true
+  },
+  {
+    id: 'mode',
+    name: 'mode',
+    displayName: 'Mode',
+    color: 'bg-green-500',
+    icon: '🟢',
+    isOpStack: true
+  },
+  {
+    id: 'zora',
+    name: 'zora',
+    displayName: 'Zora',
+    color: 'bg-purple-500',
+    icon: '🟣',
+    isOpStack: true
+  },
+  // Other Chains
+  {
+    id: 'ethereum',
+    name: 'ethereum',
+    displayName: 'Ethereum',
+    color: 'bg-gray-700',
+    icon: '⟠',
+    isOpStack: false
+  },
+  {
+    id: 'arbitrum',
+    name: 'arbitrum',
+    displayName: 'Arbitrum',
+    color: 'bg-blue-600',
+    icon: '🔷',
+    isOpStack: false
+  },
+  {
+    id: 'polygon',
+    name: 'polygon',
+    displayName: 'Polygon',
+    color: 'bg-purple-600',
+    icon: '🟣',
+    isOpStack: false
+  }
+];
 
 interface TokenContract {
   chain: string;
   chain_id: number;
+  is_op_stack: boolean;
   block: number;
   hash: string;
   deployer: string;
@@ -42,6 +98,21 @@ interface TokenContract {
     liquidity: string;
     dex: string;
   };
+  explorer_url: string;
+}
+
+interface ScanResult {
+  success: boolean;
+  chain: string;
+  blocks_scanned: number;
+  scan_time: string;
+  summary: {
+    total_contracts: number;
+    lp_contracts: number;
+    success_rate: number;
+  };
+  results: TokenContract[];
+  error?: string;
 }
 
 export default function TokenScanner() {
@@ -50,85 +121,42 @@ export default function TokenScanner() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [opStackOnly, setOpStackOnly] = useState(false);
+  const [chainDropdownOpen, setChainDropdownOpen] = useState(false);
+
+  const selectedChainData = CHAINS.find(chain => chain.id === selectedChain);
+  const opStackChains = CHAINS.filter(chain => chain.isOpStack);
+  const otherChains = CHAINS.filter(chain => !chain.isOpStack);
 
   const handleScan = async () => {
     setIsScanning(true);
     setError(null);
     
     try {
-      // Mock data - API bypass for now
-      const mockData = {
-        success: true,
-        chain: selectedChain,
-        blocks_scanned: blockCount,
-        scan_time: new Date().toISOString(),
-        summary: {
-          total_contracts: Math.floor(Math.random() * 10) + 1,
-          lp_contracts: Math.floor(Math.random() * 3) + 1,
-          success_rate: Math.round(Math.random() * 100 * 10) / 10
-        },
-        results: [
-          {
-            chain: selectedChain,
-            chain_id: selectedChain === 'base' ? 8453 : selectedChain === 'ethereum' ? 1 : selectedChain === 'arbitrum' ? 42161 : 137,
-            block: Math.floor(Math.random() * 1000000) + 12000000,
-            hash: `0x${Math.random().toString(16).substr(2, 40)}`,
-            deployer: `0x${Math.random().toString(16).substr(2, 40)}`,
-            contract_address: `0x${Math.random().toString(16).substr(2, 40)}`,
-            timestamp: new Date().toISOString(),
-            metadata: {
-              name: "MockCoin Token",
-              symbol: "MOCK",
-              decimals: 18,
-              total_supply: Math.floor(Math.random() * 10000000) + 100000
-            },
-            lp_info: {
-              v2: Math.random() > 0.5,
-              v3: Math.random() > 0.5,
-              status: Math.random() > 0.3 ? "YES" : "NO"
-            },
-            dex_data: {
-              price_usd: (Math.random() * 0.01).toFixed(6),
-              volume_24h: Math.floor(Math.random() * 100000).toString(),
-              liquidity: Math.floor(Math.random() * 500000).toString(),
-              dex: "uniswap-v2"
-            }
+      const response = await fetch(
+        `/api/scan?chain=${selectedChain}&blocks=${blockCount}&opStackOnly=${opStackOnly}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          {
-            chain: selectedChain,
-            chain_id: selectedChain === 'base' ? 8453 : selectedChain === 'ethereum' ? 1 : selectedChain === 'arbitrum' ? 42161 : 137,
-            block: Math.floor(Math.random() * 1000000) + 12000000,
-            hash: `0x${Math.random().toString(16).substr(2, 40)}`,
-            deployer: `0x${Math.random().toString(16).substr(2, 40)}`,
-            contract_address: `0x${Math.random().toString(16).substr(2, 40)}`,
-            timestamp: new Date().toISOString(),
-            metadata: {
-              name: "TestNet Coin",
-              symbol: "TEST",
-              decimals: 18,
-              total_supply: Math.floor(Math.random() * 5000000) + 50000
-            },
-            lp_info: {
-              v2: Math.random() > 0.5,
-              v3: Math.random() > 0.5,
-              status: Math.random() > 0.4 ? "YES" : "NO"
-            },
-            dex_data: {
-              price_usd: (Math.random() * 0.001).toFixed(6),
-              volume_24h: Math.floor(Math.random() * 50000).toString(),
-              liquidity: Math.floor(Math.random() * 200000).toString(),
-              dex: "uniswap-v3"
-            }
-          }
-        ]
-      };
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setScanResults(mockData);
+        }
+      );
       
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: ScanResult = await response.json();
+      
+      if (data.success) {
+        setScanResults(data);
+      } else {
+        setError(data.error || 'Scan failed');
+      }
     } catch (err) {
-      setError('Mock data generation error');
+      console.error('Scan error:', err);
+      setError(err instanceof Error ? err.message : 'Network error occurred');
     } finally {
       setIsScanning(false);
     }
@@ -158,17 +186,104 @@ export default function TokenScanner() {
         <h2 className="text-2xl font-bold text-gray-800 mb-6">🌐 Multi-Chain Token Scanner</h2>
         
         <div className="flex flex-wrap gap-4 items-end mb-6">
-          <div>
+          {/* Chain Selector */}
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Blockchain
             </label>
-            <ChainSelector 
-              selectedChain={selectedChain}
-              onChainChange={setSelectedChain}
-              isLoading={isScanning}
-            />
+            <button
+              onClick={() => setChainDropdownOpen(!chainDropdownOpen)}
+              disabled={isScanning}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white
+                hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500
+                ${isScanning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                transition-colors duration-200
+              `}
+            >
+              <span className="text-xl">{selectedChainData?.icon}</span>
+              <div className="flex flex-col items-start">
+                <span className="font-medium">{selectedChainData?.displayName}</span>
+                {selectedChainData?.isOpStack && (
+                  <span className="text-xs text-green-600 font-medium">OP Stack</span>
+                )}
+              </div>
+              <svg 
+                className={`w-4 h-4 transition-transform duration-200 ${chainDropdownOpen ? 'rotate-180' : ''}`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {chainDropdownOpen && (
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                {/* OP Stack Section */}
+                <div className="p-2">
+                  <div className="flex items-center gap-2 px-2 py-1 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-semibold text-gray-700">Superchain (OP Stack)</span>
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                      {opStackChains.length} chains
+                    </span>
+                  </div>
+                  {opStackChains.map((chain) => (
+                    <button
+                      key={chain.id}
+                      onClick={() => {
+                        setSelectedChain(chain.id);
+                        setChainDropdownOpen(false);
+                      }}
+                      className={`
+                        w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 rounded-md
+                        ${selectedChain === chain.id ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-700'}
+                        transition-colors duration-150
+                      `}
+                    >
+                      <span className="text-lg">{chain.icon}</span>
+                      <div className="flex-1">
+                        <div className="font-medium">{chain.displayName}</div>
+                        <div className="text-xs text-green-600">OP Stack</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="border-t border-gray-200 my-1"></div>
+
+                {/* Other Chains Section */}
+                <div className="p-2">
+                  <div className="flex items-center gap-2 px-2 py-1 mb-2">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                    <span className="text-sm font-semibold text-gray-700">Other Chains</span>
+                  </div>
+                  {otherChains.map((chain) => (
+                    <button
+                      key={chain.id}
+                      onClick={() => {
+                        setSelectedChain(chain.id);
+                        setChainDropdownOpen(false);
+                      }}
+                      className={`
+                        w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 rounded-md
+                        ${selectedChain === chain.id ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-700'}
+                        transition-colors duration-150
+                      `}
+                    >
+                      <span className="text-lg">{chain.icon}</span>
+                      <div className="flex-1">
+                        <div className="font-medium">{chain.displayName}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
+          {/* Blocks Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Blocks to Scan
@@ -183,7 +298,23 @@ export default function TokenScanner() {
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             />
           </div>
+
+          {/* OP Stack Filter */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="opStackOnly"
+              checked={opStackOnly}
+              onChange={(e) => setOpStackOnly(e.target.checked)}
+              disabled={isScanning}
+              className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+            />
+            <label htmlFor="opStackOnly" className="text-sm font-medium text-gray-700">
+              OP Stack Only
+            </label>
+          </div>
           
+          {/* Scan Button */}
           <button
             onClick={handleScan}
             disabled={isScanning}
@@ -204,11 +335,12 @@ export default function TokenScanner() {
                 Scanning...
               </span>
             ) : (
-              '🔍 Start Scan (Mock Data)'
+              '🔍 Start Scan'
             )}
           </button>
         </div>
 
+        {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-2">
@@ -220,6 +352,7 @@ export default function TokenScanner() {
           </div>
         )}
 
+        {/* Summary Stats */}
         {scanResults && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-50 rounded-lg p-4">
@@ -242,6 +375,7 @@ export default function TokenScanner() {
         )}
       </div>
 
+      {/* Results Table */}
       {scanResults && scanResults.results.length > 0 && (
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -255,6 +389,7 @@ export default function TokenScanner() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chain</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LP Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
@@ -272,25 +407,43 @@ export default function TokenScanner() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-mono text-gray-900">
-                        {token.contract_address.slice(0, 6)}...{token.contract_address.slice(-4)}
+                      <div className="flex items-center gap-1">
+                        {token.is_op_stack && (
+                          <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            OP
+                          </span>
+                        )}
+                        <span className="text-sm text-gray-600">{token.chain}</span>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <a 
+                        href={token.explorer_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-mono text-blue-600 hover:text-blue-800"
+                      >
+                        {token.contract_address.slice(0, 6)}...{token.contract_address.slice(-4)}
+                      </a>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`
                         inline-flex px-2 py-1 text-xs font-semibold rounded-full
                         ${token.lp_info.status === 'YES' 
                           ? 'bg-green-100 text-green-800' 
-                          : token.lp_info.status === 'NO'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
+                          : 'bg-red-100 text-red-800'
                         }
                       `}>
-                        {token.lp_info.status === 'YES' ? '✅ Has LP' : token.lp_info.status === 'NO' ? '❌ No LP' : '⚠️ Error'}
+                        {token.lp_info.status === 'YES' ? '✅ Has LP' : '❌ No LP'}
                       </span>
+                      {token.lp_info.status === 'YES' && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {token.lp_info.v2 && 'V2'} {token.lp_info.v3 && 'V3'}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {token.dex_data?.price_usd ? `$${parseFloat(token.dex_data.price_usd).toFixed(6)}` : '-'}
+                      {token.dex_data?.price_usd ? `$${parseFloat(token.dex_data.price_usd).toFixed(8)}` : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatNumber(token.metadata.total_supply)}
@@ -306,6 +459,7 @@ export default function TokenScanner() {
         </div>
       )}
 
+      {/* No Results */}
       {scanResults && scanResults.results.length === 0 && (
         <div className="bg-white rounded-lg shadow-lg p-8 text-center">
           <div className="text-gray-400 text-6xl mb-4">🔍</div>
