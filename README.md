@@ -158,18 +158,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-<<<<<<< HEAD
-- GitHub: [@YOUR_USERNAME](https://github.com/YOUR_USERNAME)
-- Twitter: [@YOUR_TWITTER](https://twitter.com/YOUR_TWITTER)
-
----
-
 **Built with ❤️ for the Superchain**
 =======
 - GitHub: [@serayd61](https://github.com/serayd61)
 - Twitter: [@serayd61](https://twitter.com/serayd61)
 
----
-
-**Built with ❤️ for the Superchain**
->>>>>>> 69fcd8bdf17fc792606bc1a7bee43c7b28b5592c
