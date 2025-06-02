@@ -1,0 +1,16 @@
+[
+  {
+    "contract_address": "0x486299f1d2dFaDb3d2223BfBd9F5Da9c164d2896",
+    "metadata": {
+      "is_token": false
+    },
+    "checked_at": "2025-06-01T06:43:29"
+  },
+  {
+    "contract_address": "0x5f200c998DcD859291D817dFc519E8b65F7CE678",
+    "metadata": {
+      "is_token": false
+    },
+    "checked_at": "2025-06-01T06:43:29"
+  }
+]

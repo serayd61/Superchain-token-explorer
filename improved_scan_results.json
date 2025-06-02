@@ -1,0 +1,29 @@
+[
+  {
+    "contract_address": "0xb62bE4668D84f09EC86002f92aa5891A08fD8475",
+    "block": 30986436,
+    "deployer": "0x0163a058D61D1A78727d30d110C5C224ecc6887C",
+    "metadata": {
+      "is_token": false,
+      "functions_working": 0
+    }
+  },
+  {
+    "contract_address": "0x476C705AA1DADfC6DF8939D23E689Cb4C1e4e4F5",
+    "block": 30986438,
+    "deployer": "0x0163a058D61D1A78727d30d110C5C224ecc6887C",
+    "metadata": {
+      "is_token": false,
+      "functions_working": 0
+    }
+  },
+  {
+    "contract_address": "0xE6ae479b0DA52f1C82381c95904B6B5EdeDa5109",
+    "block": 30986441,
+    "deployer": "0x380919612713cb3d14287E30912323867bBFFBFc",
+    "metadata": {
+      "is_token": false,
+      "functions_working": 0
+    }
+  }
+]

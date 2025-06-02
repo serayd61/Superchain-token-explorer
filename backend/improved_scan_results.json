@@ -1,0 +1,39 @@
+[
+  {
+    "contract_address": "0x07E496731aa452852ee86C5926375B142665A1a3",
+    "block": 30985496,
+    "deployer": "0x83681C14770b44361e21Faf91D8325423365eA5C",
+    "metadata": {
+      "is_token": false,
+      "functions_working": 0
+    }
+  },
+  {
+    "contract_address": "0x6A7cd894859d6A4702298DB8d0aae63Bf462F491",
+    "block": 30985506,
+    "deployer": "0x93CAab7AC67C463C35EA0fb28b41A4315d869214",
+    "metadata": {
+      "name": "ZORB",
+      "symbol": "ZORB",
+      "decimals": 18,
+      "totalSupply": 8800000000000000000000000000,
+      "readableSupply": 8800000000.0,
+      "is_token": true,
+      "functions_working": 4
+    }
+  },
+  {
+    "contract_address": "0x3704338bdC4BA6CD32A42E30b8F8D3A78be8b0A4",
+    "block": 30985506,
+    "deployer": "0xd88985aaFfe77cf9ec3961AB3145d0231645e0f0",
+    "metadata": {
+      "name": "\ud83d\udea2SHIPX",
+      "symbol": "\ud83d\udea2SHIPX",
+      "decimals": 18,
+      "totalSupply": 1000000000000000000000000000,
+      "readableSupply": 1000000000.0,
+      "is_token": true,
+      "functions_working": 4
+    }
+  }
+]
