@@ -1,12 +1,31 @@
 {
-  "name": "base-token-explorer",
-  "version": "0.1.0",
+  "name": "superchain-token-explorer",
+  "version": "1.0.0",
+  "description": "Real-time token deployment tracking across the Optimism Superchain ecosystem",
+  "author": "Serkan Aydin <serayd61@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/serayd61/superchain-token-explorer"
+  },
+  "keywords": [
+    "optimism",
+    "superchain",
+    "op-stack",
+    "base",
+    "token-explorer",
+    "defi",
+    "web3",
+    "blockchain"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "vercel --prod",
+    "test": "echo \"No tests yet\" && exit 0"
   },
   "dependencies": {
     "@radix-ui/react-tooltip": "^1.2.7",
