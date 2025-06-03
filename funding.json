@@ -1,5 +1,17 @@
 {
   "opRetro": {
-    "projectId": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    "projectId": "superchain-token-explorer",
+    "category": "utility",
+    "displayName": "Superchain Token Explorer",
+    "websiteUrl": "https://superchain-token-explorer-ppuydqipm-serkans-projects-9991a7f3.vercel.app",
+    "applicant": {
+      "address": {
+        "resolvedName": {
+          "address": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    },
+    "contributionDescription": "Real-time token deployment tracking across the Optimism Superchain",
+    "impactDescription": "Monitors 7+ OP Stack chains for new token deployments and liquidity"
   }
 }
