@@ -1,5 +1,13 @@
 # 🚀 Superchain Token Explorer
 
+## 🌐 Live Demo
+
+🚀 **[Try it live!](https://superchain-token-explorer-ppuydqipm-serkans-projects-9991a7f3.vercel.app)**
+
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black)](https://superchain-token-explorer-ppuydqipm-serkans-projects-9991a7f3.vercel.app)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![OP Stack](https://img.shields.io/badge/OP_Stack-7_Chains-red)](https://stack.optimism.io/)
+
 A real-time dashboard for tracking new token deployments across the **Optimism Superchain** ecosystem. Monitor liquidity pools, analyze smart contracts, and discover new opportunities across 7+ OP Stack chains.
 
 ![Superchain Token Explorer](https://img.shields.io/badge/Superchain-Enabled-red)
