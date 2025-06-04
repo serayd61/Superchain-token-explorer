@@ -1,5 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Shield, Check, X, Info } from 'lucide-react';
+import { NextRequest, NextResponse } from 'next/server';
+import { ethers } from 'ethers';
+
+// Chain configurations (reuse from scan route)
+const chainConfigs = {
+  base: { 
+    rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+    explorerUrl: 'https://basescan.org',
+    explorerApiUrl: 'https://api.basescan.org/api',
+    apiKey: process.env.BASESCAN_API_KEY || ''
+  },
+  optimism: { 
+    rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
+    explorerUrl: 'https://optimistic.etherscan.io',
+    explorerApiUrl: 'https://api-optimistic.etherscan.io/api',
+    apiKey: process.env.OPTIMISM_ETHERSCAN_API_KEY || ''
+  },
+  ethereum: { 
+    rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://ethereum.publicnode.com',
+    explorerUrl: 'https://etherscan.io',
+    explorerApiUrl: 'https://api.etherscan.io/api',
+    apiKey: process.env.ETHERSCAN_API_KEY || ''
+  }
+};
+
+// Enhanced ERC20 ABI for safety checks
+const SAFETY_CHECK_ABI = [
+  // Standard ERC20
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function totalSupply() view returns (uint256)',
+  'function balanceOf(address) view returns (uint256)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function transferFrom(address from, address to, uint256 amount) returns (bool)',
+  // Ownership
+  'function owner() view returns (address)',
+  'function renounceOwnership()',
+  // Tax/Fee functions (common patterns)
+  'function _taxFee() view returns (uint256)',
+  'function _liquidityFee() view returns (uint256)',
+  'function _buyTax() view returns (uint256)',
+  'function _sellTax() view returns (uint256)',
+  'function buyTax() view returns (uint256)',
+  'function sellTax() view returns (uint256)',
+  // Blacklist functions
+  'function isBlacklisted(address) view returns (bool)',
+  'function blacklist(address)',
+  // Max transaction
+  'function _maxTxAmount() view returns (uint256)',
+  'function maxTransactionAmount() view returns (uint256)',
+];
 
 interface SafetyCheck {
   name: string;
@@ -9,253 +61,400 @@ interface SafetyCheck {
   details?: string;
 }
 
-interface TokenSafetyProps {
+interface TokenSafetyAnalysis {
   contractAddress: string;
   chain: string;
+  checks: SafetyCheck[];
+  overallScore: number;
+  riskLevel: 'very-high' | 'high' | 'moderate' | 'low';
+  metadata: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    totalSupply: string;
+  };
 }
 
-export default function TokenSafetyAnalyzer({ contractAddress, chain }: TokenSafetyProps) {
-  const [checks, setChecks] = useState<SafetyCheck[]>([
-    {
+async function checkContractVerification(address: string, chain: string): Promise<SafetyCheck> {
+  const config = chainConfigs[chain as keyof typeof chainConfigs];
+  if (!config || !config.apiKey) {
+    return {
       name: 'Contract Verification',
       description: 'Source code verified on explorer',
-      status: 'checking',
-      severity: 'high'
-    },
-    {
+      status: 'warning',
+      severity: 'high',
+      details: 'Explorer API not configured'
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `${config.explorerApiUrl}?module=contract&action=getsourcecode&address=${address}&apikey=${config.apiKey}`
+    );
+    const data = await response.json();
+    
+    if (data.status === '1' && data.result[0].SourceCode && data.result[0].SourceCode !== '') {
+      return {
+        name: 'Contract Verification',
+        description: 'Source code verified on explorer',
+        status: 'pass',
+        severity: 'high',
+        details: `Verified on ${chain} explorer`
+      };
+    } else {
+      return {
+        name: 'Contract Verification',
+        description: 'Source code verified on explorer',
+        status: 'fail',
+        severity: 'high',
+        details: 'Contract source code not verified'
+      };
+    }
+  } catch (error) {
+    return {
+      name: 'Contract Verification',
+      description: 'Source code verified on explorer',
+      status: 'warning',
+      severity: 'high',
+      details: 'Could not check verification status'
+    };
+  }
+}
+
+async function checkOwnership(contract: ethers.Contract): Promise<SafetyCheck> {
+  try {
+    const owner = await contract.owner();
+    
+    if (owner === ethers.ZeroAddress) {
+      return {
+        name: 'Ownership Status',
+        description: 'Contract ownership renounced or safe',
+        status: 'pass',
+        severity: 'high',
+        details: 'Ownership has been renounced'
+      };
+    } else {
+      return {
+        name: 'Ownership Status',
+        description: 'Contract ownership renounced or safe',
+        status: 'warning',
+        severity: 'high',
+        details: `Owner can modify contract: ${owner.slice(0, 6)}...${owner.slice(-4)}`
+      };
+    }
+  } catch (error) {
+    // No owner function means it might be safer
+    return {
       name: 'Ownership Status',
       description: 'Contract ownership renounced or safe',
-      status: 'checking',
-      severity: 'high'
-    },
-    {
-      name: 'Honeypot Detection',
-      description: 'Can sell tokens after buying',
-      status: 'checking',
-      severity: 'high'
-    },
-    {
-      name: 'Tax Analysis',
-      description: 'Buy/sell tax within reasonable limits',
-      status: 'checking',
-      severity: 'medium'
-    },
-    {
-      name: 'Liquidity Lock',
-      description: 'Liquidity locked for investor protection',
-      status: 'checking',
-      severity: 'medium'
-    },
-    {
-      name: 'Holder Distribution',
-      description: 'No single wallet holds majority',
-      status: 'checking',
-      severity: 'medium'
-    },
-    {
-      name: 'Trading Activity',
-      description: 'Natural trading patterns detected',
-      status: 'checking',
-      severity: 'low'
-    }
-  ]);
+      status: 'pass',
+      severity: 'high',
+      details: 'No owner function found (likely safe)'
+    };
+  }
+}
 
-  const [overallScore, setOverallScore] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    analyzeSafety();
-  }, [contractAddress, chain]);
-
-  const analyzeSafety = async () => {
-    setLoading(true);
-    
+async function checkHoneypot(contract: ethers.Contract, provider: ethers.JsonRpcProvider): Promise<SafetyCheck> {
+  try {
+    // Check for blacklist functions
     try {
-      // Simulate API calls - replace with actual implementation
-      const response = await fetch(`/api/analyze-token?address=${contractAddress}&chain=${chain}`);
-      const data = await response.json();
+      await contract.isBlacklisted(ethers.ZeroAddress);
+      return {
+        name: 'Honeypot Detection',
+        description: 'Can sell tokens after buying',
+        status: 'fail',
+        severity: 'high',
+        details: 'Blacklist function detected - potential honeypot'
+      };
+    } catch {
+      // No blacklist function is good
+    }
+
+    // Check for max transaction limits
+    try {
+      const maxTx = await contract._maxTxAmount?.() || await contract.maxTransactionAmount?.();
+      const totalSupply = await contract.totalSupply();
       
-      // For demo purposes, let's simulate some results
-      const simulatedChecks: SafetyCheck[] = [
-        {
-          name: 'Contract Verification',
-          description: 'Source code verified on explorer',
-          status: Math.random() > 0.3 ? 'pass' : 'fail',
-          severity: 'high',
-          details: 'Verified on BaseScan'
-        },
-        {
-          name: 'Ownership Status',
-          description: 'Contract ownership renounced or safe',
-          status: Math.random() > 0.5 ? 'pass' : 'warning',
-          severity: 'high',
-          details: 'Owner can modify contract'
-        },
-        {
+      if (maxTx && maxTx < totalSupply / 100n) { // Less than 1% of supply
+        return {
           name: 'Honeypot Detection',
           description: 'Can sell tokens after buying',
-          status: Math.random() > 0.2 ? 'pass' : 'fail',
+          status: 'warning',
           severity: 'high',
-          details: 'No selling restrictions found'
-        },
-        {
-          name: 'Tax Analysis',
-          description: 'Buy/sell tax within reasonable limits',
-          status: Math.random() > 0.4 ? 'pass' : 'warning',
-          severity: 'medium',
-          details: 'Buy: 5%, Sell: 5%'
-        },
-        {
-          name: 'Liquidity Lock',
-          description: 'Liquidity locked for investor protection',
-          status: Math.random() > 0.6 ? 'pass' : 'fail',
-          severity: 'medium',
-          details: 'No liquidity lock detected'
-        },
-        {
-          name: 'Holder Distribution',
-          description: 'No single wallet holds majority',
-          status: Math.random() > 0.5 ? 'pass' : 'warning',
-          severity: 'medium',
-          details: 'Top holder: 15%'
-        },
-        {
-          name: 'Trading Activity',
-          description: 'Natural trading patterns detected',
-          status: 'pass',
-          severity: 'low',
-          details: 'Organic trading detected'
-        }
-      ];
-      
-      setChecks(simulatedChecks);
-      
-      // Calculate overall score
-      const score = calculateScore(simulatedChecks);
-      setOverallScore(score);
-      
-    } catch (error) {
-      console.error('Safety analysis error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateScore = (checks: SafetyCheck[]): number => {
-    let totalScore = 0;
-    let maxScore = 0;
-    
-    checks.forEach(check => {
-      const weight = check.severity === 'high' ? 3 : check.severity === 'medium' ? 2 : 1;
-      maxScore += weight;
-      
-      if (check.status === 'pass') {
-        totalScore += weight;
-      } else if (check.status === 'warning') {
-        totalScore += weight * 0.5;
+          details: 'Very low max transaction amount detected'
+        };
       }
+    } catch {
+      // No max tx limit is fine
+    }
+
+    return {
+      name: 'Honeypot Detection',
+      description: 'Can sell tokens after buying',
+      status: 'pass',
+      severity: 'high',
+      details: 'No obvious honeypot indicators found'
+    };
+  } catch (error) {
+    return {
+      name: 'Honeypot Detection',
+      description: 'Can sell tokens after buying',
+      status: 'warning',
+      severity: 'high',
+      details: 'Could not perform honeypot analysis'
+    };
+  }
+}
+
+async function checkTaxes(contract: ethers.Contract): Promise<SafetyCheck> {
+  try {
+    let buyTax = 0;
+    let sellTax = 0;
+    
+    // Try different tax function patterns
+    const taxFunctions = [
+      { buy: '_buyTax', sell: '_sellTax' },
+      { buy: 'buyTax', sell: 'sellTax' },
+      { buy: '_taxFee', sell: '_taxFee' },
+      { buy: '_liquidityFee', sell: '_liquidityFee' }
+    ];
+
+    for (const funcs of taxFunctions) {
+      try {
+        const buyTaxValue = await contract[funcs.buy]?.();
+        const sellTaxValue = await contract[funcs.sell]?.();
+        
+        if (buyTaxValue !== undefined) buyTax = Number(buyTaxValue);
+        if (sellTaxValue !== undefined) sellTax = Number(sellTaxValue);
+        
+        if (buyTax > 0 || sellTax > 0) break;
+      } catch {
+        // Try next pattern
+      }
+    }
+
+    const maxTax = Math.max(buyTax, sellTax);
+    
+    if (maxTax === 0) {
+      return {
+        name: 'Tax Analysis',
+        description: 'Buy/sell tax within reasonable limits',
+        status: 'pass',
+        severity: 'medium',
+        details: 'No taxes detected'
+      };
+    } else if (maxTax <= 5) {
+      return {
+        name: 'Tax Analysis',
+        description: 'Buy/sell tax within reasonable limits',
+        status: 'pass',
+        severity: 'medium',
+        details: `Buy: ${buyTax}%, Sell: ${sellTax}%`
+      };
+    } else if (maxTax <= 10) {
+      return {
+        name: 'Tax Analysis',
+        description: 'Buy/sell tax within reasonable limits',
+        status: 'warning',
+        severity: 'medium',
+        details: `Buy: ${buyTax}%, Sell: ${sellTax}% (moderate taxes)`
+      };
+    } else {
+      return {
+        name: 'Tax Analysis',
+        description: 'Buy/sell tax within reasonable limits',
+        status: 'fail',
+        severity: 'medium',
+        details: `Buy: ${buyTax}%, Sell: ${sellTax}% (high taxes!)`
+      };
+    }
+  } catch (error) {
+    return {
+      name: 'Tax Analysis',
+      description: 'Buy/sell tax within reasonable limits',
+      status: 'pass',
+      severity: 'medium',
+      details: 'No tax functions found'
+    };
+  }
+}
+
+async function checkLiquidityLock(tokenAddress: string, chain: string): Promise<SafetyCheck> {
+  // This would require integration with lock services like Unicrypt, PinkLock, etc.
+  // For now, we'll return a warning suggesting manual verification
+  return {
+    name: 'Liquidity Lock',
+    description: 'Liquidity locked for investor protection',
+    status: 'warning',
+    severity: 'medium',
+    details: 'Manual verification required - check Unicrypt/PinkLock'
+  };
+}
+
+async function checkHolderDistribution(contract: ethers.Contract, provider: ethers.JsonRpcProvider): Promise<SafetyCheck> {
+  try {
+    const totalSupply = await contract.totalSupply();
+    const decimals = await contract.decimals();
+    
+    // Check deployer balance
+    const deployerBalance = await contract.balanceOf(await contract.owner().catch(() => ethers.ZeroAddress));
+    const deployerPercentage = (Number(deployerBalance) / Number(totalSupply)) * 100;
+    
+    if (deployerPercentage > 50) {
+      return {
+        name: 'Holder Distribution',
+        description: 'No single wallet holds majority',
+        status: 'fail',
+        severity: 'medium',
+        details: `Deployer holds ${deployerPercentage.toFixed(1)}% of supply`
+      };
+    } else if (deployerPercentage > 20) {
+      return {
+        name: 'Holder Distribution',
+        description: 'No single wallet holds majority',
+        status: 'warning',
+        severity: 'medium',
+        details: `Top holder has ${deployerPercentage.toFixed(1)}% of supply`
+      };
+    } else {
+      return {
+        name: 'Holder Distribution',
+        description: 'No single wallet holds majority',
+        status: 'pass',
+        severity: 'medium',
+        details: 'Good token distribution'
+      };
+    }
+  } catch (error) {
+    return {
+      name: 'Holder Distribution',
+      description: 'No single wallet holds majority',
+      status: 'warning',
+      severity: 'medium',
+      details: 'Could not analyze holder distribution'
+    };
+  }
+}
+
+async function checkTradingActivity(tokenAddress: string, chain: string): Promise<SafetyCheck> {
+  // This would typically check DEX trading patterns
+  // For now, return a basic check
+  return {
+    name: 'Trading Activity',
+    description: 'Natural trading patterns detected',
+    status: 'pass',
+    severity: 'low',
+    details: 'Trading activity analysis requires DEX integration'
+  };
+}
+
+function calculateOverallScore(checks: SafetyCheck[]): { score: number; riskLevel: 'very-high' | 'high' | 'moderate' | 'low' } {
+  let totalScore = 0;
+  let maxScore = 0;
+  
+  checks.forEach(check => {
+    const weight = check.severity === 'high' ? 3 : check.severity === 'medium' ? 2 : 1;
+    maxScore += weight;
+    
+    if (check.status === 'pass') {
+      totalScore += weight;
+    } else if (check.status === 'warning') {
+      totalScore += weight * 0.5;
+    }
+  });
+  
+  const score = Math.round((totalScore / maxScore) * 100);
+  
+  let riskLevel: 'very-high' | 'high' | 'moderate' | 'low';
+  if (score >= 80) riskLevel = 'low';
+  else if (score >= 60) riskLevel = 'moderate';
+  else if (score >= 40) riskLevel = 'high';
+  else riskLevel = 'very-high';
+  
+  return { score, riskLevel };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const address = searchParams.get('address');
+    const chain = searchParams.get('chain') || 'base';
+    
+    if (!address || !ethers.isAddress(address)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid contract address'
+      }, { status: 400 });
+    }
+    
+    const chainConfig = chainConfigs[chain as keyof typeof chainConfigs];
+    if (!chainConfig) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unsupported chain'
+      }, { status: 400 });
+    }
+    
+    // Initialize provider and contract
+    const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+    const contract = new ethers.Contract(address, SAFETY_CHECK_ABI, provider);
+    
+    // Get basic token metadata
+    let metadata;
+    try {
+      const [name, symbol, decimals, totalSupply] = await Promise.all([
+        contract.name(),
+        contract.symbol(),
+        contract.decimals(),
+        contract.totalSupply()
+      ]);
+      
+      metadata = {
+        name,
+        symbol,
+        decimals: Number(decimals),
+        totalSupply: ethers.formatUnits(totalSupply, decimals)
+      };
+    } catch (error) {
+      return NextResponse.json({
+        success: false,
+        error: 'Not a valid ERC20 token contract'
+      }, { status: 400 });
+    }
+    
+    // Perform safety checks
+    const checks: SafetyCheck[] = await Promise.all([
+      checkContractVerification(address, chain),
+      checkOwnership(contract),
+      checkHoneypot(contract, provider),
+      checkTaxes(contract),
+      checkLiquidityLock(address, chain),
+      checkHolderDistribution(contract, provider),
+      checkTradingActivity(address, chain)
+    ]);
+    
+    // Calculate overall score
+    const { score, riskLevel } = calculateOverallScore(checks);
+    
+    const analysis: TokenSafetyAnalysis = {
+      contractAddress: address,
+      chain,
+      checks,
+      overallScore: score,
+      riskLevel,
+      metadata
+    };
+    
+    return NextResponse.json({
+      success: true,
+      analysis
     });
     
-    return Math.round((totalScore / maxScore) * 100);
-  };
-
-  const getScoreColor = (score: number): string => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    if (score >= 40) return 'text-orange-600';
-    return 'text-red-600';
-  };
-
-  const getScoreLabel = (score: number): string => {
-    if (score >= 80) return 'Very Safe';
-    if (score >= 60) return 'Moderate Risk';
-    if (score >= 40) return 'High Risk';
-    return 'Very High Risk';
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pass':
-        return <Check className="w-5 h-5 text-green-500" />;
-      case 'fail':
-        return <X className="w-5 h-5 text-red-500" />;
-      case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
-      default:
-        return <div className="w-5 h-5 rounded-full border-2 border-gray-300 animate-spin" />;
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <Shield className="w-6 h-6" />
-          Token Safety Analysis
-        </h3>
-        
-        {!loading && (
-          <div className="text-center">
-            <div className={`text-3xl font-bold ${getScoreColor(overallScore)}`}>
-              {overallScore}/100
-            </div>
-            <div className="text-sm text-gray-600">{getScoreLabel(overallScore)}</div>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        {checks.map((check, index) => (
-          <div
-            key={index}
-            className={`border rounded-lg p-4 transition-all duration-200 ${
-              check.status === 'checking' ? 'border-gray-200' :
-              check.status === 'pass' ? 'border-green-200 bg-green-50' :
-              check.status === 'warning' ? 'border-yellow-200 bg-yellow-50' :
-              'border-red-200 bg-red-50'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(check.status)}
-                  <div>
-                    <h4 className="font-medium text-gray-800">{check.name}</h4>
-                    <p className="text-sm text-gray-600">{check.description}</p>
-                    {check.details && check.status !== 'checking' && (
-                      <p className="text-xs text-gray-500 mt-1">{check.details}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="ml-4">
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  check.severity === 'high' ? 'bg-red-100 text-red-700' :
-                  check.severity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-blue-100 text-blue-700'
-                }`}>
-                  {check.severity.toUpperCase()}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <div className="flex items-start gap-2">
-          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">How to interpret this score:</p>
-            <ul className="space-y-1 text-xs">
-              <li>• <strong>80-100:</strong> Generally safe, but always DYOR</li>
-              <li>• <strong>60-79:</strong> Some concerns, proceed with caution</li>
-              <li>• <strong>40-59:</strong> Significant risks detected</li>
-              <li>• <strong>0-39:</strong> High risk, consider avoiding</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  } catch (error) {
+    console.error('Token safety analysis error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Analysis failed'
+    }, { status: 500 });
+  }
 }

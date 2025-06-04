@@ -66,4 +66,4 @@ Thumbs.db
 # Project specific
 /backend/*.json
 !/backend/requirements.txt
-/public/charts/
+/public/charts/.env.local

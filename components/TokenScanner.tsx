@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
+
+// Lazy load the safety analyzer to improve initial load time
+const TokenSafetyAnalyzer = lazy(() => import('./TokenSafetyAnalyzer'));
 
 interface ChainOption {
   id: string;
@@ -123,6 +126,8 @@ export default function TokenScanner() {
   const [error, setError] = useState<string | null>(null);
   const [opStackOnly, setOpStackOnly] = useState(false);
   const [chainDropdownOpen, setChainDropdownOpen] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<TokenContract | null>(null);
+  const [showSafetyAnalyzer, setShowSafetyAnalyzer] = useState(false);
 
   const selectedChainData = CHAINS.find(chain => chain.id === selectedChain);
   const opStackChains = CHAINS.filter(chain => chain.isOpStack);
@@ -395,6 +400,7 @@ export default function TokenScanner() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supply</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Safety</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -451,6 +457,20 @@ export default function TokenScanner() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatTimeAgo(token.timestamp)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => {
+                          setSelectedToken(token);
+                          setShowSafetyAnalyzer(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        Analyze
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -468,6 +488,42 @@ export default function TokenScanner() {
             No new contract deployments found in the last {blockCount} blocks on {selectedChain}.
             Try increasing the block count or selecting a different chain.
           </p>
+        </div>
+      )}
+
+      {/* Safety Analyzer Modal */}
+      {showSafetyAnalyzer && selectedToken && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Token Safety Analysis</h2>
+              <button
+                onClick={() => {
+                  setShowSafetyAnalyzer(false);
+                  setSelectedToken(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4">
+              <Suspense fallback={
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              }>
+                <TokenSafetyAnalyzer
+                  contractAddress={selectedToken.contract_address}
+                  chain={selectedToken.chain}
+                  tokenSymbol={selectedToken.metadata.symbol}
+                  tokenName={selectedToken.metadata.name}
+                />
+              </Suspense>
+            </div>
+          </div>
         </div>
       )}
     </div>
