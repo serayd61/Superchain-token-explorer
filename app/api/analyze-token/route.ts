@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 
-// Chain configurations (reuse from scan route)
+// Chain configurations with API keys
 const chainConfigs = {
   base: { 
     rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
@@ -13,13 +13,37 @@ const chainConfigs = {
     rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
     explorerUrl: 'https://optimistic.etherscan.io',
     explorerApiUrl: 'https://api-optimistic.etherscan.io/api',
-    apiKey: process.env.OPTIMISM_ETHERSCAN_API_KEY || ''
+    apiKey: process.env.OPTIMISM_API_KEY || '66N5FRNV1ZD4I87S7MAHCJVXFJ'
   },
   ethereum: { 
     rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://ethereum.publicnode.com',
     explorerUrl: 'https://etherscan.io',
     explorerApiUrl: 'https://api.etherscan.io/api',
-    apiKey: process.env.ETHERSCAN_API_KEY || ''
+    apiKey: process.env.ETHERSCAN_API_KEY || 'VZFDUWB3YGQ1YCDKTCU1D6DDSS'
+  },
+  arbitrum: {
+    rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arbitrum.publicnode.com',
+    explorerUrl: 'https://arbiscan.io',
+    explorerApiUrl: 'https://api.arbiscan.io/api',
+    apiKey: process.env.ARBISCAN_API_KEY || 'B6SVGA7K3YBJEQ69AFKJF4YHVX'
+  },
+  polygon: {
+    rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon.llamarpc.com',
+    explorerUrl: 'https://polygonscan.com',
+    explorerApiUrl: 'https://api.polygonscan.com/api',
+    apiKey: process.env.POLYGONSCAN_API_KEY || ''
+  },
+  mode: {
+    rpcUrl: process.env.MODE_RPC_URL || 'https://mainnet.mode.network',
+    explorerUrl: 'https://explorer.mode.network',
+    explorerApiUrl: 'https://explorer.mode.network/api',
+    apiKey: ''  // Mode doesn't use Etherscan API
+  },
+  zora: {
+    rpcUrl: process.env.ZORA_RPC_URL || 'https://rpc.zora.energy',
+    explorerUrl: 'https://explorer.zora.energy',
+    explorerApiUrl: 'https://explorer.zora.energy/api',
+    apiKey: ''  // Zora doesn't use Etherscan API
   }
 };
 
@@ -83,7 +107,7 @@ async function checkContractVerification(address: string, chain: string): Promis
       description: 'Source code verified on explorer',
       status: 'warning',
       severity: 'high',
-      details: 'Explorer API not configured'
+      details: 'Explorer API not configured for this chain'
     };
   }
 
@@ -175,7 +199,7 @@ async function checkHoneypot(contract: ethers.Contract, provider: ethers.JsonRpc
       const maxTx = await contract._maxTxAmount?.() || await contract.maxTransactionAmount?.();
       const totalSupply = await contract.totalSupply();
       
-      if (maxTx && maxTx < totalSupply / 100n) { // Less than 1% of supply
+      if (maxTx && maxTx < totalSupply / BigInt(100)) { // Less than 1% of supply
         return {
           name: 'Honeypot Detection',
           description: 'Can sell tokens after buying',

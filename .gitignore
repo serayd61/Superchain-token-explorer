@@ -67,3 +67,5 @@ Thumbs.db
 /backend/*.json
 !/backend/requirements.txt
 /public/charts/.env.local
+*.backup*
+*.old
