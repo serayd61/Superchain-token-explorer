@@ -76,7 +76,7 @@ const CHAINS: ChainOption[] = [
   }
 ];
 
-interface TokenContract {
+export interface TokenContract {
   chain: string;
   chain_id: number;
   is_op_stack: boolean;
@@ -396,7 +396,7 @@ export default function TokenScanner() {
         {showAnalytics && scanResults && (
           <div className="mb-6">
             <DeployerLeaderboard 
-              tokens={scanResults.results} 
+              tokens={scanResults.results || []} 
               isLoading={isScanning}
               showCharts={true}
             />

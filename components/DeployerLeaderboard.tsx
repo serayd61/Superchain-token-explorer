@@ -1,292 +1,285 @@
 import React, { useMemo } from 'react';
-import { Trophy, TrendingUp, Coins, Activity, BarChart3, Clock } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { 
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
 
+// Temporary interface definition - should match the one in TokenScanner.tsx
 interface TokenContract {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;
   deployer: string;
-  metadata: {
-    symbol: string;
-  };
-  lp_info: {
-    status: string;
-  };
-  dex_data?: {
-    liquidity?: string;
+  deploymentTx: string;
+  deploymentBlock: number;
+  deploymentTimestamp: number;
+  chain: string;
+  hasLiquidity: boolean;
+  liquidityInfo?: {
+    wethPaired: boolean;
+    pairAddress: string;
+    reserves: {
+      token: string;
+      weth: string;
+    };
   };
 }
 
 interface DeployerLeaderboardProps {
-  tokens: TokenContract[];
+  tokens: any[]; // Geçici olarak any kullanıyoruz
   isLoading?: boolean;
-}
-
-interface AnalyticsDashboardProps extends DeployerLeaderboardProps {
   showCharts?: boolean;
 }
 
-export default function DeployerLeaderboard({ tokens, isLoading, showCharts = false }: AnalyticsDashboardProps) {
+interface DeployerStats {
+  address: string;
+  tokenCount: number;
+  totalLiquidity: number;
+  successRate: number;
+  tokens: TokenContract[];
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+const DeployerLeaderboard: React.FC<DeployerLeaderboardProps> = ({ tokens, isLoading, showCharts = true }) => {
   const deployerStats = useMemo(() => {
     if (!tokens || tokens.length === 0) return [];
-
-    // Group tokens by deployer
-    const deployerMap = new Map<string, {
-      address: string;
-      tokenCount: number;
-      withLpCount: number;
-      totalLiquidity: number;
-      tokens: string[];
-    }>();
-
+    
+    const stats = new Map<string, DeployerStats>();
+    
     tokens.forEach(token => {
-      const deployer = token.deployer.toLowerCase();
+      if (!token || !token.deployer) return; // Skip invalid tokens
       
-      if (!deployerMap.has(deployer)) {
-        deployerMap.set(deployer, {
-          address: token.deployer,
+      const deployer = token.deployer;
+      if (!stats.has(deployer)) {
+        stats.set(deployer, {
+          address: deployer,
           tokenCount: 0,
-          withLpCount: 0,
           totalLiquidity: 0,
+          successRate: 0,
           tokens: []
         });
       }
-
-      const stats = deployerMap.get(deployer)!;
-      stats.tokenCount++;
       
-      if (token.lp_info.status === 'YES') {
-        stats.withLpCount++;
-        if (token.dex_data?.liquidity) {
-          stats.totalLiquidity += parseFloat(token.dex_data.liquidity);
-        }
+      const stat = stats.get(deployer)!;
+      stat.tokenCount++;
+      stat.tokens.push(token);
+      
+      if (token.hasLiquidity && token.liquidityInfo) {
+        const wethReserve = parseFloat(token.liquidityInfo.reserves.weth) / 1e18;
+        stat.totalLiquidity += wethReserve;
       }
-      
-      stats.tokens.push(token.metadata.symbol);
     });
-
-    // Convert to array and sort by token count
-    return Array.from(deployerMap.values())
-      .sort((a, b) => b.tokenCount - a.tokenCount)
-      .slice(0, 10); // Top 10 deployers
-  }, [tokens]);
-
-  // Time series data for charts
-  const timeSeriesData = useMemo(() => {
-    if (!tokens || tokens.length === 0) return [];
-
-    // Group by hour
-    const hourlyData = new Map<string, { hour: string; deployments: number; withLP: number }>();
     
-    tokens.forEach(token => {
-      const date = new Date(token.timestamp || new Date());
-      const hourKey = `${date.getHours()}:00`;
-      
-      if (!hourlyData.has(hourKey)) {
-        hourlyData.set(hourKey, { hour: hourKey, deployments: 0, withLP: 0 });
-      }
-      
-      const data = hourlyData.get(hourKey)!;
-      data.deployments++;
-      if (token.lp_info.status === 'YES') {
-        data.withLP++;
-      }
+    // Calculate success rate (tokens with liquidity)
+    stats.forEach(stat => {
+      const withLiquidity = stat.tokens.filter(t => t.hasLiquidity).length;
+      stat.successRate = (withLiquidity / stat.tokenCount) * 100;
     });
-
-    return Array.from(hourlyData.values()).slice(-24); // Last 24 hours
+    
+    return Array.from(stats.values())
+      .sort((a, b) => b.tokenCount - a.tokenCount)
+      .slice(0, 20); // Top 20 deployers
   }, [tokens]);
 
-  // Chain distribution data
   const chainDistribution = useMemo(() => {
-    if (!tokens || tokens.length === 0) return [];
-
-    const chainMap = new Map<string, number>();
+    const distribution = new Map<string, number>();
     tokens.forEach(token => {
-      const chain = token.chain || 'unknown';
-      chainMap.set(chain, (chainMap.get(chain) || 0) + 1);
+      distribution.set(token.chain, (distribution.get(token.chain) || 0) + 1);
     });
-
-    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
-    return Array.from(chainMap.entries()).map(([chain, value], index) => ({
+    
+    return Array.from(distribution.entries()).map(([chain, count]) => ({
       name: chain,
-      value,
-      color: colors[index % colors.length]
+      value: count
     }));
   }, [tokens]);
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  const formatLiquidity = (amount: number) => {
-    if (amount >= 1e6) return `$${(amount / 1e6).toFixed(1)}M`;
-    if (amount >= 1e3) return `$${(amount / 1e3).toFixed(1)}K`;
-    return `$${amount.toFixed(0)}`;
-  };
-
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 0: return '🥇';
-      case 1: return '🥈';
-      case 2: return '🥉';
-      default: return `${rank + 1}`;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Trophy className="w-6 h-6 text-yellow-500" />
-          <h3 className="text-xl font-bold text-gray-800">Top Deployers</h3>
-        </div>
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                  <div className="h-4 bg-gray-300 rounded w-32"></div>
-                </div>
-                <div className="h-4 bg-gray-300 rounded w-20"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (deployerStats.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Trophy className="w-6 h-6 text-yellow-500" />
-          <h3 className="text-xl font-bold text-gray-800">Top Deployers</h3>
-        </div>
-        <div className="text-center py-8 text-gray-500">
-          <Trophy className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p>No deployment data available yet</p>
-        </div>
-      </div>
-    );
-  }
+  const timeSeriesData = useMemo(() => {
+    const hourlyData = new Map<string, number>();
+    
+    tokens.forEach(token => {
+      const date = new Date(token.deploymentTimestamp ? token.deploymentTimestamp * 1000 : Date.now());
+      const hourKey = `${date.getHours()}:00`;
+      
+      if (!hourlyData.has(hourKey)) {
+        hourlyData.set(hourKey, 0);
+      }
+      hourlyData.set(hourKey, hourlyData.get(hourKey)! + 1);
+    });
+    
+    return Array.from(hourlyData.entries())
+      .map(([hour, count]) => ({ hour, count }))
+      .sort((a, b) => {
+        const hourA = parseInt(a.hour);
+        const hourB = parseInt(b.hour);
+        return hourA - hourB;
+      });
+  }, [tokens]);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Trophy className="w-6 h-6 text-yellow-500" />
-        <h3 className="text-xl font-bold text-gray-800">Top Deployers</h3>
-        <span className="ml-auto text-sm text-gray-500">Last 24h</span>
-      </div>
-
-      <div className="space-y-3">
-        {deployerStats.map((deployer, index) => {
-          const successRate = deployer.tokenCount > 0 
-            ? (deployer.withLpCount / deployer.tokenCount * 100).toFixed(0)
-            : '0';
-
-          return (
-            <div
-              key={deployer.address}
-              className={`relative p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
-                index < 3 ? 'border-yellow-200 bg-gradient-to-r from-yellow-50 to-transparent' : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                    index < 3 ? 'bg-yellow-100' : 'bg-gray-100'
-                  }`}>
-                    <span className="text-lg font-bold">{getRankIcon(index)}</span>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`https://basescan.org/address/${deployer.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        {formatAddress(deployer.address)}
-                      </a>
-                      {index === 0 && (
-                        <span className="px-2 py-0.5 text-xs font-semibold bg-yellow-200 text-yellow-800 rounded-full">
-                          👑 Leader
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Coins className="w-3 h-3" />
-                        <span>{deployer.tokenCount} tokens</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Activity className="w-3 h-3" />
-                        <span>{successRate}% with LP</span>
-                      </div>
-                      {deployer.totalLiquidity > 0 && (
-                        <div className="flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" />
-                          <span>{formatLiquidity(deployer.totalLiquidity)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-800">
-                    {deployer.tokenCount}
-                  </div>
-                  <div className="text-xs text-gray-500">deployments</div>
-                </div>
-              </div>
-
-              {/* Token symbols preview */}
-              <div className="mt-3 flex flex-wrap gap-1">
-                {deployer.tokens.slice(0, 5).map((symbol, i) => (
-                  <span
-                    key={i}
-                    className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full"
-                  >
-                    {symbol}
-                  </span>
-                ))}
-                {deployer.tokens.length > 5 && (
-                  <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full">
-                    +{deployer.tokens.length - 5} more
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Stats Summary */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-2xl font-bold text-gray-800">
-              {deployerStats.reduce((sum, d) => sum + d.tokenCount, 0)}
-            </div>
-            <div className="text-xs text-gray-500">Total Tokens</div>
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold mb-4">Deployer Analytics</h2>
+        
+        {isLoading ? (
+          <div className="text-center py-8">
+            <div className="text-gray-500">Loading analytics...</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-green-600">
-              {deployerStats.reduce((sum, d) => sum + d.withLpCount, 0)}
-            </div>
-            <div className="text-xs text-gray-500">With LP</div>
+        ) : tokens && tokens.length > 0 ? (
+          <>
+            {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 p-4 rounded">
+            <div className="text-sm text-gray-600">Total Tokens</div>
+            <div className="text-2xl font-bold">{tokens.length}</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-blue-600">
-              {formatLiquidity(deployerStats.reduce((sum, d) => sum + d.totalLiquidity, 0))}
+          <div className="bg-green-50 p-4 rounded">
+            <div className="text-sm text-gray-600">Unique Deployers</div>
+            <div className="text-2xl font-bold">{deployerStats.length}</div>
+          </div>
+          <div className="bg-purple-50 p-4 rounded">
+            <div className="text-sm text-gray-600">With Liquidity</div>
+            <div className="text-2xl font-bold">
+              {tokens.filter(t => t.hasLiquidity).length}
             </div>
-            <div className="text-xs text-gray-500">Total Liquidity</div>
+          </div>
+          <div className="bg-orange-50 p-4 rounded">
+            <div className="text-sm text-gray-600">Success Rate</div>
+            <div className="text-2xl font-bold">
+              {((tokens.filter(t => t.hasLiquidity).length / tokens.length) * 100).toFixed(1)}%
+            </div>
           </div>
         </div>
+
+        {/* Top Deployers Table */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">Top Deployers</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Deployer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tokens
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    With Liquidity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Success Rate
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total ETH in LPs
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {deployerStats.slice(0, 10).map((stat, index) => (
+                  <tr key={stat.address}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {stat.address.substring(0, 6)}...{stat.address.substring(38)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.tokenCount}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.tokens.filter(t => t.hasLiquidity).length}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="text-sm text-gray-900">{stat.successRate.toFixed(1)}%</div>
+                        <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-green-500 h-2 rounded-full" 
+                            style={{ width: `${stat.successRate}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.totalLiquidity.toFixed(4)} ETH
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Deployment Time Distribution */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Deployments by Hour</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="hour" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="count" stroke="#8884d8" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chain Distribution */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Chain Distribution</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={chainDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {chainDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Success Rate by Deployer */}
+          <div className="md:col-span-2">
+            <h3 className="text-lg font-semibold mb-4">Success Rate by Top Deployers</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={deployerStats.slice(0, 10)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="address" 
+                  tickFormatter={(value) => `${value.substring(0, 6)}...`}
+                />
+                <YAxis />
+                <Tooltip 
+                  labelFormatter={(value) => `${value.substring(0, 6)}...${value.substring(38)}`}
+                />
+                <Bar dataKey="successRate" fill="#82ca9d" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No token data available for analytics
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default DeployerLeaderboard;
