@@ -20,14 +20,14 @@
   ],
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "vercel --prod",
-    "test": "echo \"No tests yet\" && exit 0"
-  },
-  "dependencies": {
+    "check-env": "node scripts/check-env.js",
+    "prebuild": "npm run check-env",
+    "deploy": "vercel --prod"
+  },  "dependencies": {
     "@radix-ui/react-tooltip": "^1.2.7",
     "ethers": "^6.14.3",
     "lucide-react": "^0.511.0",

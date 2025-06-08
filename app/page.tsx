@@ -1,4 +1,6 @@
 import TokenScanner from '@/components/TokenScanner';
+import SuperchainDashboard from '@/components/superchain/SuperchainDashboard';
+import CrossChainTokenTracker from '@/components/superchain/CrossChainTokenTracker';
 
 export default function Home() {
   return (
@@ -51,6 +53,14 @@ export default function Home() {
         
         {/* Main Scanner Component */}
         <TokenScanner />
+        
+        {/* Yeni Superchain Dashboard */}
+        <div className="mt-8">
+          <SuperchainDashboard />
+        </div>
+
+        {/* Cross-Chain Token Tracker */}
+        <CrossChainTokenTracker />
         
         {/* Features Section */}
         <div className="mt-16 text-center">

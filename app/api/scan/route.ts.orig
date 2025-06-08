@@ -263,16 +263,15 @@ export async function GET(request: NextRequest) {
         if (!block || !block.transactions) continue;
 
         // Type assertion for transactions
-        const transactions = block.transactions as string[];
+        const transactions = block.transactions as (string | TransactionResponse)[];
         
-        for (const txHash of transactions) {
+        for (const tx of transactions) {
           // Skip if transaction is just a hash string
-          if (typeof txHash !== 'string') continue;
+          if (typeof tx === 'string') continue;
           
-          // Get full transaction
-          const tx = await provider.getTransaction(txHash);
-          if (!tx || tx.to !== null) continue;
-          
+          // Now TypeScript knows tx is TransactionResponse
+          // Skip if not a contract creation (has a 'to' address)
+          if (tx.to !== null) continue;
           
           // Get transaction receipt to find contract address
           const receipt = await provider.getTransactionReceipt(tx.hash);

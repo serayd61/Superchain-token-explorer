@@ -1,15 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: [],
+  // Disable type checking during build (for faster builds)
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  // API route configuration
   async headers() {
     return [
       {
-        source: '/api/(.*)',
+        source: '/api/:path*',
         headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
-          },
           {
             key: 'Access-Control-Allow-Origin',
             value: '*'
@@ -25,7 +28,13 @@ const nextConfig = {
         ]
       }
     ]
+  },
+  // Ensure proper output for Vercel
+  output: 'standalone',
+  // Image optimization
+  images: {
+    unoptimized: true
   }
 }
 
-module.exports = nextConfig
+export default nextConfig

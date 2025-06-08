@@ -1,13 +1,14 @@
 {
-  "framework": "nextjs",
   "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
   "outputDirectory": ".next",
+  "framework": "nextjs",
   "functions": {
-    "app/api/scan/route.ts": {
+    "app/api/*/route.ts": {
       "maxDuration": 30
     }
+  },
+  "env": {
+    "NODE_ENV": "production"
   },
   "headers": [
     {
@@ -24,6 +25,10 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, Authorization"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=60, stale-while-revalidate"
         }
       ]
     }
