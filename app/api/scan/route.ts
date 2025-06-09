@@ -23,6 +23,26 @@ const chainConfigs = {
     uniswapV2Factory: '0x31F63A33141fFee63D4B26755430a390ACdD8a4d',
     uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
   },
+  mode: {
+    name: 'mode',
+    chainId: 34443,
+    rpcUrl: process.env.MODE_RPC_URL || 'https://mainnet.mode.network',
+    explorerUrl: 'https://explorer.mode.network',
+    isOpStack: true,
+    wethAddress: '0x4200000000000000000000000000000000000006',
+    uniswapV2Factory: '0x31F63A33141fFee63D4B26755430a390ACdD8a4d',
+    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+  },
+  zora: {
+    name: 'zora',
+    chainId: 7777777,
+    rpcUrl: process.env.ZORA_RPC_URL || 'https://rpc.zora.energy',
+    explorerUrl: 'https://explorer.zora.energy',
+    isOpStack: true,
+    wethAddress: '0x4200000000000000000000000000000000000006',
+    uniswapV2Factory: '0x31F63A33141fFee63D4B26755430a390ACdD8a4d',
+    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+  },
   arbitrum: {
     name: 'arbitrum',
     chainId: 42161,
@@ -39,115 +59,119 @@ const chainConfigs = {
     rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
     explorerUrl: 'https://polygonscan.com',
     isOpStack: false,
-    wethAddress: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270', // WMATIC
+    wethAddress: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
     uniswapV2Factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32',
+    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+  },
+  ethereum: {
+    name: 'ethereum',
+    chainId: 1,
+    rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://ethereum.publicnode.com',
+    explorerUrl: 'https://etherscan.io',
+    isOpStack: false,
+    wethAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    uniswapV2Factory: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
     uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
   }
 };
 
-interface TokenInfo {
-  address: string;
-  name: string;
-  symbol: string;
-  decimals: number;
-  totalSupply: string;
-  deployer: string;
-  deploymentTx: string;
-  deploymentBlock: number;
-  deploymentTimestamp: number;
+interface TokenContract {
   chain: string;
-  hasLiquidity: boolean;
-  liquidityInfo?: {
-    wethPaired: boolean;
-    pairAddress: string;
-    reserves: {
-      token: string;
-      weth: string;
-    };
+  chain_id: number;
+  is_op_stack: boolean;
+  block: number;
+  hash: string;
+  deployer: string;
+  contract_address: string;
+  timestamp: string;
+  metadata: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    total_supply: number;
   };
+  lp_info: {
+    v2: boolean;
+    v3: boolean;
+    status: string;
+  };
+  dex_data?: {
+    price_usd: string;
+    volume_24h: string;
+    liquidity: string;
+    dex: string;
+  };
+  explorer_url: string;
 }
 
 // Simple in-memory cache
 const scanCache = new Map<string, { 
-  data: TokenInfo[], 
+  data: TokenContract[], 
   timestamp: number,
   lastBlock: number 
 }>();
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
 async function checkLiquidity(
   tokenAddress: string, 
   provider: ethers.Provider,
   chainConfig: typeof chainConfigs[keyof typeof chainConfigs]
-): Promise<{ hasLiquidity: boolean; liquidityInfo?: any }> {
+): Promise<{ v2: boolean; v3: boolean; status: string }> {
   try {
-    // Check Uniswap V2
-    const v2Factory = new ethers.Contract(
-      chainConfig.uniswapV2Factory,
-      [
-        'function getPair(address tokenA, address tokenB) view returns (address pair)'
-      ],
-      provider
-    );
+    let v2Exists = false;
+    let v3Exists = false;
 
-    const pairAddress = await v2Factory.getPair(tokenAddress, chainConfig.wethAddress);
-    
-    if (pairAddress !== '0x0000000000000000000000000000000000000000') {
-      // Get pair reserves
-      const pair = new ethers.Contract(
-        pairAddress,
-        [
-          'function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)',
-          'function token0() view returns (address)',
-          'function token1() view returns (address)'
-        ],
+    // Check Uniswap V2
+    try {
+      const v2Factory = new ethers.Contract(
+        chainConfig.uniswapV2Factory,
+        ['function getPair(address tokenA, address tokenB) view returns (address pair)'],
         provider
       );
 
-      const [reserves, token0, token1] = await Promise.all([
-        pair.getReserves(),
-        pair.token0(),
-        pair.token1()
-      ]);
-
-      const isToken0 = token0.toLowerCase() === tokenAddress.toLowerCase();
-      const tokenReserve = isToken0 ? reserves[0] : reserves[1];
-      const wethReserve = isToken0 ? reserves[1] : reserves[0];
-
-      // Check if there's meaningful liquidity (more than 0.1 ETH worth)
-      const minLiquidity = ethers.parseEther('0.1');
-      if (wethReserve > minLiquidity) {
-        return {
-          hasLiquidity: true,
-          liquidityInfo: {
-            wethPaired: true,
-            pairAddress,
-            reserves: {
-              token: tokenReserve.toString(),
-              weth: wethReserve.toString()
-            }
-          }
-        };
-      }
+      const pairAddress = await v2Factory.getPair(tokenAddress, chainConfig.wethAddress);
+      v2Exists = pairAddress !== '0x0000000000000000000000000000000000000000';
+    } catch (error) {
+      console.error('V2 check error:', error);
     }
 
-    // You could add Uniswap V3 checks here as well
+    // Check Uniswap V3
+    try {
+      const v3Factory = new ethers.Contract(
+        chainConfig.uniswapV3Factory,
+        ['function getPool(address tokenA, address tokenB, uint24 fee) view returns (address pool)'],
+        provider
+      );
 
-    return { hasLiquidity: false };
+      // Check common fee tiers: 0.05%, 0.3%, 1%
+      const feeTiers = [500, 3000, 10000];
+      for (const fee of feeTiers) {
+        const poolAddress = await v3Factory.getPool(tokenAddress, chainConfig.wethAddress, fee);
+        if (poolAddress !== '0x0000000000000000000000000000000000000000') {
+          v3Exists = true;
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('V3 check error:', error);
+    }
+
+    return {
+      v2: v2Exists,
+      v3: v3Exists,
+      status: (v2Exists || v3Exists) ? 'YES' : 'NO'
+    };
   } catch (error) {
     console.error('Error checking liquidity:', error);
-    return { hasLiquidity: false };
+    return { v2: false, v3: false, status: 'ERROR' };
   }
 }
 
-async function getTokenInfo(
-  contractAddress: string, 
-  deploymentTx: string,
-  deploymentBlock: number,
-  provider: ethers.Provider,
-  chainConfig: typeof chainConfigs[keyof typeof chainConfigs]
-): Promise<TokenInfo | null> {
+async function getTokenMetadata(
+  contractAddress: string,
+  provider: ethers.Provider
+): Promise<any> {
   try {
     const contract = new ethers.Contract(
       contractAddress,
@@ -160,7 +184,6 @@ async function getTokenInfo(
       provider
     );
 
-    // Try to get token info
     const [name, symbol, decimals, totalSupply] = await Promise.all([
       contract.name().catch(() => 'Unknown'),
       contract.symbol().catch(() => 'UNKNOWN'),
@@ -168,38 +191,20 @@ async function getTokenInfo(
       contract.totalSupply().catch(() => '0')
     ]);
 
-    // Get deployment transaction details
-    const tx = await provider.getTransaction(deploymentTx);
-    if (!tx) return null;
-
-    // Get block timestamp
-    const block = await provider.getBlock(deploymentBlock);
-    if (!block) return null;
-
-    // Check liquidity
-    const { hasLiquidity, liquidityInfo } = await checkLiquidity(
-      contractAddress,
-      provider,
-      chainConfig
-    );
-
     return {
-      address: contractAddress,
       name,
       symbol,
-      decimals,
-      totalSupply: totalSupply.toString(),
-      deployer: tx.from,
-      deploymentTx,
-      deploymentBlock,
-      deploymentTimestamp: block.timestamp,
-      chain: chainConfig.name,
-      hasLiquidity,
-      liquidityInfo
+      decimals: Number(decimals),
+      total_supply: Number(ethers.formatUnits(totalSupply, decimals))
     };
   } catch (error) {
-    console.error('Error getting token info:', error);
-    return null;
+    console.error('Error getting token metadata:', error);
+    return {
+      name: 'Unknown',
+      symbol: 'UNKNOWN',
+      decimals: 18,
+      total_supply: 0
+    };
   }
 }
 
@@ -207,117 +212,163 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const chain = searchParams.get('chain') || 'base';
-    const fromBlock = searchParams.get('fromBlock');
-    const toBlock = searchParams.get('toBlock');
-    const useCache = searchParams.get('cache') !== 'false';
+    const blocks = parseInt(searchParams.get('blocks') || '10');
+    const opStackOnly = searchParams.get('opStackOnly') === 'true';
 
     // Validate chain
     if (!chainConfigs[chain as keyof typeof chainConfigs]) {
-      return NextResponse.json(
-        { error: 'Invalid chain' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid chain selected'
+      }, { status: 400 });
     }
 
     const chainConfig = chainConfigs[chain as keyof typeof chainConfigs];
-    const cacheKey = `${chain}-tokens`;
-
-    // Check cache
-    if (useCache) {
-      const cached = scanCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        return NextResponse.json({
-          tokens: cached.data,
-          fromCache: true,
-          lastBlock: cached.lastBlock,
-          chain: chainConfig.name
-        });
-      }
+    
+    // Skip non-OP Stack chains if filter is enabled
+    if (opStackOnly && !chainConfig.isOpStack) {
+      return NextResponse.json({
+        success: true,
+        chain: chainConfig.name,
+        blocks_scanned: 0,
+        results: [],
+        summary: {
+          total_contracts: 0,
+          lp_contracts: 0,
+          success_rate: 0
+        }
+      });
     }
 
-    // Initialize provider
-    const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+    // Check cache first
+    const cacheKey = `${chain}-${blocks}`;
+    const cached = scanCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return NextResponse.json({
+        success: true,
+        chain: chainConfig.name,
+        blocks_scanned: blocks,
+        results: cached.data,
+        summary: {
+          total_contracts: cached.data.length,
+          lp_contracts: cached.data.filter(t => t.lp_info.status === 'YES').length,
+          success_rate: cached.data.length > 0 
+            ? (cached.data.filter(t => t.lp_info.status === 'YES').length / cached.data.length) * 100 
+            : 0
+        },
+        from_cache: true
+      });
+    }
 
-    // Get block range
-    const latestBlock = await provider.getBlockNumber();
-    const startBlock = fromBlock ? parseInt(fromBlock) : latestBlock - 1000; // Last 1000 blocks by default
-    const endBlock = toBlock ? parseInt(toBlock) : latestBlock;
+    // Initialize provider with connection check
+    let provider: ethers.JsonRpcProvider;
+    let latestBlock: number;
+    
+    try {
+      provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+      
+      // Test connection with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('RPC connection timeout')), 10000)
+      );
+      
+      latestBlock = await Promise.race([
+        provider.getBlockNumber(),
+        timeoutPromise
+      ]) as number;
+      
+      console.log(`Connected to ${chainConfig.name}, latest block: ${latestBlock}`);
+    } catch (error) {
+      console.error(`Failed to connect to ${chainConfig.name} RPC:`, error);
+      return NextResponse.json({
+        success: false,
+        error: `Failed to connect to ${chainConfig.name} RPC. Please check your RPC URL.`,
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 503 });
+    }
 
-    console.log(`Scanning ${chainConfig.name} from block ${startBlock} to ${endBlock}`);
+    // Scan blocks
+    const startBlock = latestBlock - blocks + 1;
+    const results: TokenContract[] = [];
 
-    const tokens: TokenInfo[] = [];
-    const batchSize = 100; // Process blocks in batches
+    console.log(`Scanning ${chainConfig.name} from block ${startBlock} to ${latestBlock}`);
 
-    // Process blocks in batches
-    for (let i = startBlock; i <= endBlock; i += batchSize) {
-      const batchEnd = Math.min(i + batchSize - 1, endBlock);
-      const blockPromises = [];
-
-      for (let blockNumber = i; blockNumber <= batchEnd; blockNumber++) {
-        blockPromises.push(provider.getBlock(blockNumber, true));
-      }
-
-      const blocks = await Promise.all(blockPromises);
-
-      for (const block of blocks) {
+    for (let blockNumber = startBlock; blockNumber <= latestBlock; blockNumber++) {
+      try {
+        const block = await provider.getBlock(blockNumber, true);
         if (!block || !block.transactions) continue;
 
-        // Type assertion for transactions
         const transactions = block.transactions as string[];
         
         for (const txHash of transactions) {
-          // Skip if transaction is just a hash string
           if (typeof txHash !== 'string') continue;
           
-          // Get full transaction
           const tx = await provider.getTransaction(txHash);
           if (!tx || tx.to !== null) continue;
           
-          
-          // Get transaction receipt to find contract address
           const receipt = await provider.getTransactionReceipt(tx.hash);
           if (!receipt || !receipt.contractAddress) continue;
 
-          // Try to get token info
-          const tokenInfo = await getTokenInfo(
-            receipt.contractAddress,
-            tx.hash,
-            block.number,
-            provider,
-            chainConfig
-          );
+          // Get token metadata
+          const metadata = await getTokenMetadata(receipt.contractAddress, provider);
+          
+          // Skip if not a token (no name or symbol)
+          if (metadata.name === 'Unknown' && metadata.symbol === 'UNKNOWN') continue;
 
-          if (tokenInfo) {
-            tokens.push(tokenInfo);
-            console.log(`Found token: ${tokenInfo.symbol} at ${tokenInfo.address}`);
-          }
+          // Check liquidity
+          const lpInfo = await checkLiquidity(receipt.contractAddress, provider, chainConfig);
+
+          const result: TokenContract = {
+            chain: chainConfig.name,
+            chain_id: chainConfig.chainId,
+            is_op_stack: chainConfig.isOpStack,
+            block: blockNumber,
+            hash: tx.hash,
+            deployer: tx.from,
+            contract_address: receipt.contractAddress,
+            timestamp: new Date(block.timestamp * 1000).toISOString(),
+            metadata,
+            lp_info: lpInfo,
+            explorer_url: `${chainConfig.explorerUrl}/address/${receipt.contractAddress}`
+          };
+
+          results.push(result);
+          console.log(`Found token: ${metadata.symbol} at ${receipt.contractAddress}`);
         }
+      } catch (error) {
+        console.error(`Error processing block ${blockNumber}:`, error);
       }
     }
 
     // Update cache
     scanCache.set(cacheKey, {
-      data: tokens,
+      data: results,
       timestamp: Date.now(),
-      lastBlock: endBlock
+      lastBlock: latestBlock
     });
 
+    // Return results
     return NextResponse.json({
-      tokens,
-      fromCache: false,
-      scannedBlocks: {
-        from: startBlock,
-        to: endBlock,
-        total: endBlock - startBlock + 1
-      },
-      chain: chainConfig.name
+      success: true,
+      chain: chainConfig.name,
+      blocks_scanned: blocks,
+      scan_time: new Date().toISOString(),
+      results,
+      summary: {
+        total_contracts: results.length,
+        lp_contracts: results.filter(t => t.lp_info.status === 'YES').length,
+        success_rate: results.length > 0 
+          ? (results.filter(t => t.lp_info.status === 'YES').length / results.length) * 100 
+          : 0
+      }
     });
 
   } catch (error) {
     console.error('Scan error:', error);
-    return NextResponse.json(
-      { error: 'Failed to scan blockchain' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    }, { status: 500 });
   }
 }
+EOF

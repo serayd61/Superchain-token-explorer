@@ -27,7 +27,8 @@
     "check-env": "node scripts/check-env.js",
     "prebuild": "npm run check-env",
     "deploy": "vercel --prod"
-  },  "dependencies": {
+  },
+  "dependencies": {
     "@radix-ui/react-tooltip": "^1.2.7",
     "ethers": "^6.14.3",
     "lucide-react": "^0.511.0",
