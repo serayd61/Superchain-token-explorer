@@ -371,3 +371,19 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+// Add retry logic for RPC connections
+async function connectWithRetry(rpcUrl: string, maxRetries = 3): Promise<ethers.JsonRpcProvider | null> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      await provider.getBlockNumber();
+      return provider;
+    } catch (error) {
+      console.error(`RPC connection attempt ${i + 1} failed:`, error);
+      if (i === maxRetries - 1) return null;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  return null;
+}
