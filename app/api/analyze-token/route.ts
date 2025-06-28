@@ -13,19 +13,19 @@ const chainConfigs = {
     rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
     explorerUrl: 'https://optimistic.etherscan.io',
     explorerApiUrl: 'https://api-optimistic.etherscan.io/api',
-    apiKey: process.env.OPTIMISM_API_KEY || '66N5FRNV1ZD4I87S7MAHCJVXFJ'
+    apiKey: process.env.OPTIMISM_API_KEY || ''
   },
   ethereum: { 
     rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://ethereum.publicnode.com',
     explorerUrl: 'https://etherscan.io',
     explorerApiUrl: 'https://api.etherscan.io/api',
-    apiKey: process.env.ETHERSCAN_API_KEY || 'VZFDUWB3YGQ1YCDKTCU1D6DDSS'
+    apiKey: process.env.ETHERSCAN_API_KEY || ''
   },
   arbitrum: {
     rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arbitrum.publicnode.com',
     explorerUrl: 'https://arbiscan.io',
     explorerApiUrl: 'https://api.arbiscan.io/api',
-    apiKey: process.env.ARBISCAN_API_KEY || 'B6SVGA7K3YBJEQ69AFKJF4YHVX'
+    apiKey: process.env.ARBISCAN_API_KEY || ''
   },
   polygon: {
     rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon.llamarpc.com',

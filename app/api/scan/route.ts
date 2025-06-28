@@ -111,7 +111,7 @@ const scanCache = new Map<string, {
   lastBlock: number 
 }>();
 
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+const CACHE_DURATION = 30 * 1000; // 10 minutes
 
 async function checkLiquidity(
   tokenAddress: string, 

@@ -69,3 +69,15 @@ Thumbs.db
 /public/charts/.env.local
 *.backup*
 *.old
+
+# Backup files
+*.backup*
+*.orig
+*.old
+*.save
+.env.local.*
+
+# Python files (not used)
+backend/
+*.py
+__pycache__/
