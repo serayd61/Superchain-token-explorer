@@ -3,34 +3,17 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "functions": {
-    "app/api/*/route.ts": {
+    "app/api/scan/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/analyze-token/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/superchain/metrics/route.ts": {
       "maxDuration": 30
     }
   },
   "env": {
     "NODE_ENV": "production"
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "s-maxage=60, stale-while-revalidate"
-        }
-      ]
-    }
-  ]
+  }
 }

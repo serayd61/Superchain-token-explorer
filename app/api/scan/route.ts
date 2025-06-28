@@ -269,7 +269,7 @@ export async function GET(request: NextRequest) {
       
       // Test connection with timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('RPC connection timeout')), 10000)
+        setTimeout(() => reject(new Error('RPC connection timeout')), 5000)
       );
       
       latestBlock = await Promise.race([
@@ -372,3 +372,19 @@ export async function GET(request: NextRequest) {
   }
 }
 EOF
+
+// Add retry logic for RPC connections
+async function connectWithRetry(rpcUrl: string, maxRetries = 3): Promise<ethers.JsonRpcProvider | null> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      await provider.getBlockNumber();
+      return provider;
+    } catch (error) {
+      console.error(`RPC connection attempt ${i + 1} failed:`, error);
+      if (i === maxRetries - 1) return null;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  return null;
+}
