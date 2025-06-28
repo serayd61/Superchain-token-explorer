@@ -2,9 +2,9 @@
 
 ## 🌐 Live Demo
 
-🚀 **[Try it live!](https://superchain-token-explorer-ppuydqipm-serkans-projects-9991a7f3.vercel.app)**
+🚀 **[Try it live!](https://superchain-explorer.vercel.app)**
 
-[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black)](https://superchain-token-explorer-ppuydqipm-serkans-projects-9991a7f3.vercel.app)
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black)](https://superchain-explorer.vercel.app)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![OP Stack](https://img.shields.io/badge/OP_Stack-7_Chains-red)](https://stack.optimism.io/)
 
