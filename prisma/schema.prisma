@@ -1,0 +1,298 @@
+// Prisma schema for Superchain Token Explorer
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Token bilgileri
+model Token {
+  id                String   @id @default(cuid())
+  contractAddress   String   @unique
+  chain            String
+  chainId          Int
+  deployer         String
+  blockNumber      Int
+  transactionHash  String
+  timestamp        DateTime
+  
+  // Token metadata
+  name             String
+  symbol           String
+  decimals         Int
+  totalSupply      String
+  
+  // Liquidity info
+  hasLiquidity     Boolean  @default(false)
+  v2Pools          String[] // Array of V2 pool addresses
+  v3Pools          String[] // Array of V3 pool addresses
+  liquidityUSD     Float?   // Total liquidity in USD
+  
+  // Price data
+  priceUSD         Float?
+  volume24h        Float?
+  marketCap        Float?
+  
+  // Safety analysis
+  safetyScore      Int?     // 0-100 score
+  riskLevel        RiskLevel?
+  isVerified       Boolean  @default(false)
+  isHoneypot       Boolean  @default(false)
+  hasBlacklist     Boolean  @default(false)
+  hasMintFunction  Boolean  @default(false)
+  
+  // Trading restrictions
+  maxTxAmount      String?
+  buyTaxPercent    Float?
+  sellTaxPercent   Float?
+  
+  // Holder analysis
+  holderCount      Int?
+  topHoldersPercent Float?  // Percentage held by top 10 holders
+  
+  // Relationships
+  scanHistories    ScanHistory[]
+  priceHistories   PriceHistory[]
+  liquidityEvents  LiquidityEvent[]
+  safetyAnalyses   SafetyAnalysis[]
+  watchlists       Watchlist[]
+  
+  // Tracking
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([chain, timestamp])
+  @@index([contractAddress])
+  @@index([deployer])
+  @@index([hasLiquidity])
+  @@index([safetyScore])
+  @@index([riskLevel])
+  @@map("tokens")
+}
+
+// Risk seviyeleri
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+// Tarama geçmişi
+model ScanHistory {
+  id           String   @id @default(cuid())
+  chain        String
+  blockStart   Int
+  blockEnd     Int
+  tokensFound  Int
+  tokensWithLP Int
+  successRate  Float
+  scanDuration Int      // Duration in seconds
+  timestamp    DateTime @default(now())
+  
+  // İlişki
+  tokens       Token[]
+  
+  @@index([chain, timestamp])
+  @@map("scan_histories")
+}
+
+// Fiyat geçmişi
+model PriceHistory {
+  id          String   @id @default(cuid())
+  tokenId     String
+  priceUSD    Float
+  volume24h   Float?
+  marketCap   Float?
+  timestamp   DateTime @default(now())
+  
+  // İlişki
+  token       Token @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  @@index([tokenId, timestamp])
+  @@map("price_histories")
+}
+
+// Likidite olayları
+model LiquidityEvent {
+  id            String      @id @default(cuid())
+  tokenId       String
+  eventType     LiquidityEventType
+  poolAddress   String
+  poolType      PoolType    // V2 or V3
+  liquidityUSD  Float
+  txHash        String
+  timestamp     DateTime
+  
+  // İlişki
+  token         Token @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  @@index([tokenId, timestamp])
+  @@index([eventType])
+  @@map("liquidity_events")
+}
+
+enum LiquidityEventType {
+  POOL_CREATED
+  LIQUIDITY_ADDED
+  LIQUIDITY_REMOVED
+  SWAP
+}
+
+enum PoolType {
+  UNISWAP_V2
+  UNISWAP_V3
+  SUSHISWAP
+  OTHER
+}
+
+// Güvenlik analizi detayları
+model SafetyAnalysis {
+  id                    String   @id @default(cuid())
+  tokenId               String
+  overallScore          Int      // 0-100
+  riskLevel             RiskLevel
+  
+  // Contract security checks
+  isSourceVerified      Boolean
+  hasMaliciousFunctions Boolean
+  isStandardERC20       Boolean
+  hasProxyPattern       Boolean
+  
+  // Ownership checks
+  isOwnershipRenounced  Boolean
+  hasAdminFunctions     Boolean
+  hasBlacklistFunction  Boolean
+  hasPausableFunction   Boolean
+  
+  // Trading mechanics
+  hasTradingRestrictions Boolean
+  maxTransactionLimit   String?
+  buyTaxPercent         Float?
+  sellTaxPercent        Float?
+  isHoneypot            Boolean
+  
+  // Market analysis
+  hasStableLiquidity    Boolean
+  holderDistribution    String   // JSON string with distribution data
+  tradingVolume24h      Float?
+  
+  // Analysis metadata
+  analyzedAt            DateTime @default(now())
+  analysisVersion       String   @default("1.0")
+  
+  // İlişki
+  token                 Token @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  @@index([tokenId])
+  @@index([overallScore])
+  @@index([riskLevel])
+  @@map("safety_analyses")
+}
+
+// Deployer istatistikleri
+model DeployerStats {
+  id              String   @id @default(cuid())
+  deployerAddress String   @unique
+  tokenCount      Int      @default(0)
+  successfulTokens Int     @default(0) // Tokens with liquidity
+  successRate     Float    @default(0)
+  totalLiquidity  Float    @default(0)
+  avgSafetyScore  Float?
+  
+  // Risk assessment
+  isKnownScammer  Boolean  @default(false)
+  riskLevel       RiskLevel @default(MEDIUM)
+  
+  // Activity tracking
+  firstSeen       DateTime
+  lastSeen        DateTime
+  updatedAt       DateTime @updatedAt
+  
+  @@index([deployerAddress])
+  @@index([successRate])
+  @@index([isKnownScammer])
+  @@map("deployer_stats")
+}
+
+// Kullanıcı watchlist'leri
+model Watchlist {
+  id          String   @id @default(cuid())
+  userId      String   // User identifier (could be wallet address or session ID)
+  tokenId     String
+  addedAt     DateTime @default(now())
+  notes       String?
+  
+  // İlişki
+  token       Token @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, tokenId])
+  @@index([userId])
+  @@map("watchlists")
+}
+
+// Alert/Notification ayarları
+model AlertSettings {
+  id              String   @id @default(cuid())
+  userId          String
+  alertType       AlertType
+  
+  // Filter criteria
+  chains          String[] // Chain names to monitor
+  minLiquidity    Float?
+  maxRiskLevel    RiskLevel?
+  hasLiquidity    Boolean  @default(true)
+  
+  // Notification methods
+  webhookUrl      String?
+  email           String?
+  telegramChatId  String?
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  lastTriggered   DateTime?
+  
+  @@index([userId])
+  @@index([alertType])
+  @@index([isActive])
+  @@map("alert_settings")
+}
+
+enum AlertType {
+  NEW_TOKEN
+  LIQUIDITY_ADDED
+  PRICE_CHANGE
+  SAFETY_SCORE_CHANGE
+  HIGH_VOLUME
+}
+
+// System ayarları ve konfigürasyon
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+  
+  @@map("system_config")
+}
+
+// API kullanım istatistikleri
+model ApiUsage {
+  id          String   @id @default(cuid())
+  endpoint    String
+  method      String
+  userAgent   String?
+  ipAddress   String?
+  responseTime Int     // milliseconds
+  statusCode  Int
+  timestamp   DateTime @default(now())
+  
+  @@index([endpoint, timestamp])
+  @@index([timestamp])
+  @@map("api_usage")
+}

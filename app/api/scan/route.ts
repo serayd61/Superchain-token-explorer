@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
+import { saveTokenDeployment, saveScanHistory } from '@/lib/database';
 
 // Chain configurations with RPC endpoints
 const chainConfigs = {
@@ -111,7 +112,7 @@ const scanCache = new Map<string, {
   lastBlock: number 
 }>();
 
-const CACHE_DURATION = 30 * 1000; // 10 minutes
+const CACHE_DURATION = 60 * 1000; // 1 minute
 
 async function checkLiquidity(
   tokenAddress: string, 
@@ -209,6 +210,8 @@ async function getTokenMetadata(
 }
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const { searchParams } = new URL(request.url);
     const chain = searchParams.get('chain') || 'base';
@@ -227,7 +230,7 @@ export async function GET(request: NextRequest) {
     
     // Skip non-OP Stack chains if filter is enabled
     if (opStackOnly && !chainConfig.isOpStack) {
-      return NextResponse.json({
+      const result = {
         success: true,
         chain: chainConfig.name,
         blocks_scanned: 0,
@@ -237,7 +240,19 @@ export async function GET(request: NextRequest) {
           lp_contracts: 0,
           success_rate: 0
         }
+      };
+
+      // Save empty scan history
+      await saveScanHistory({
+        chain: chainConfig.name,
+        blocks_scanned: 0,
+        total_contracts: 0,
+        lp_contracts: 0,
+        success_rate: 0,
+        scan_time: new Date().toISOString()
       });
+
+      return NextResponse.json(result);
     }
 
     // Check cache first
@@ -280,9 +295,22 @@ export async function GET(request: NextRequest) {
       console.log(`Connected to ${chainConfig.name}, latest block: ${latestBlock}`);
     } catch (error) {
       console.error(`Failed to connect to ${chainConfig.name} RPC:`, error);
+      const errorMsg = `Failed to connect to ${chainConfig.name} RPC. Please check your RPC URL.`;
+      
+      // Save error to scan history
+      await saveScanHistory({
+        chain: chainConfig.name,
+        blocks_scanned: 0,
+        total_contracts: 0,
+        lp_contracts: 0,
+        success_rate: 0,
+        scan_time: new Date().toISOString(),
+        error_message: errorMsg
+      });
+
       return NextResponse.json({
         success: false,
-        error: `Failed to connect to ${chainConfig.name} RPC. Please check your RPC URL.`,
+        error: errorMsg,
         details: error instanceof Error ? error.message : 'Unknown error'
       }, { status: 503 });
     }
@@ -333,6 +361,15 @@ export async function GET(request: NextRequest) {
           };
 
           results.push(result);
+          
+          // Save to database
+          try {
+            await saveTokenDeployment(result);
+            console.log(`✅ Saved to DB: ${metadata.symbol} at ${receipt.contractAddress}`);
+          } catch (dbError) {
+            console.error('Database save error:', dbError);
+          }
+
           console.log(`Found token: ${metadata.symbol} at ${receipt.contractAddress}`);
         }
       } catch (error) {
@@ -347,6 +384,26 @@ export async function GET(request: NextRequest) {
       lastBlock: latestBlock
     });
 
+    // Calculate summary
+    const lpContracts = results.filter(t => t.lp_info.status === 'YES').length;
+    const successRate = results.length > 0 ? (lpContracts / results.length) * 100 : 0;
+
+    // Save scan history
+    try {
+      await saveScanHistory({
+        chain: chainConfig.name,
+        blocks_scanned: blocks,
+        total_contracts: results.length,
+        lp_contracts: lpContracts,
+        success_rate: successRate,
+        scan_time: new Date().toISOString(),
+        scan_duration_ms: Date.now() - startTime
+      });
+      console.log(`📊 Saved scan history for ${chainConfig.name}`);
+    } catch (dbError) {
+      console.error('Error saving scan history:', dbError);
+    }
+
     // Return results
     return NextResponse.json({
       success: true,
@@ -356,18 +413,33 @@ export async function GET(request: NextRequest) {
       results,
       summary: {
         total_contracts: results.length,
-        lp_contracts: results.filter(t => t.lp_info.status === 'YES').length,
-        success_rate: results.length > 0 
-          ? (results.filter(t => t.lp_info.status === 'YES').length / results.length) * 100 
-          : 0
+        lp_contracts: lpContracts,
+        success_rate: successRate
       }
     });
 
   } catch (error) {
     console.error('Scan error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'An unexpected error occurred';
+    
+    // Save error to scan history
+    try {
+      await saveScanHistory({
+        chain: 'unknown',
+        blocks_scanned: 0,
+        total_contracts: 0,
+        lp_contracts: 0,
+        success_rate: 0,
+        scan_time: new Date().toISOString(),
+        error_message: errorMsg
+      });
+    } catch (dbError) {
+      console.error('Error saving error to scan history:', dbError);
+    }
+
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      error: errorMsg
     }, { status: 500 });
   }
 }
