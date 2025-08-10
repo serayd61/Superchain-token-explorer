@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-import { saveTokenDeployment, saveScanHistory } from '@/lib/database';
+import { scanBlocks } from '@/lib/scan/scanBlocks';
+import { recordScanHistory } from '@/lib/scan/db';
+import type { TokenContract } from '@/lib/scan/types';
 
 // Chain configurations with RPC endpoints
 const chainConfigs = {
@@ -76,138 +78,14 @@ const chainConfigs = {
   }
 };
 
-interface TokenContract {
-  chain: string;
-  chain_id: number;
-  is_op_stack: boolean;
-  block: number;
-  hash: string;
-  deployer: string;
-  contract_address: string;
-  timestamp: string;
-  metadata: {
-    name: string;
-    symbol: string;
-    decimals: number;
-    total_supply: number;
-  };
-  lp_info: {
-    v2: boolean;
-    v3: boolean;
-    status: string;
-  };
-  dex_data?: {
-    price_usd: string;
-    volume_24h: string;
-    liquidity: string;
-    dex: string;
-  };
-  explorer_url: string;
-}
-
 // Simple in-memory cache
-const scanCache = new Map<string, { 
-  data: TokenContract[], 
+const scanCache = new Map<string, {
+  data: TokenContract[],
   timestamp: number,
-  lastBlock: number 
+  lastBlock: number
 }>();
 
 const CACHE_DURATION = 60 * 1000; // 1 minute
-
-async function checkLiquidity(
-  tokenAddress: string, 
-  provider: ethers.Provider,
-  chainConfig: typeof chainConfigs[keyof typeof chainConfigs]
-): Promise<{ v2: boolean; v3: boolean; status: string }> {
-  try {
-    let v2Exists = false;
-    let v3Exists = false;
-
-    // Check Uniswap V2
-    try {
-      const v2Factory = new ethers.Contract(
-        chainConfig.uniswapV2Factory,
-        ['function getPair(address tokenA, address tokenB) view returns (address pair)'],
-        provider
-      );
-
-      const pairAddress = await v2Factory.getPair(tokenAddress, chainConfig.wethAddress);
-      v2Exists = pairAddress !== '0x0000000000000000000000000000000000000000';
-    } catch (error) {
-      console.error('V2 check error:', error);
-    }
-
-    // Check Uniswap V3
-    try {
-      const v3Factory = new ethers.Contract(
-        chainConfig.uniswapV3Factory,
-        ['function getPool(address tokenA, address tokenB, uint24 fee) view returns (address pool)'],
-        provider
-      );
-
-      // Check common fee tiers: 0.05%, 0.3%, 1%
-      const feeTiers = [500, 3000, 10000];
-      for (const fee of feeTiers) {
-        const poolAddress = await v3Factory.getPool(tokenAddress, chainConfig.wethAddress, fee);
-        if (poolAddress !== '0x0000000000000000000000000000000000000000') {
-          v3Exists = true;
-          break;
-        }
-      }
-    } catch (error) {
-      console.error('V3 check error:', error);
-    }
-
-    return {
-      v2: v2Exists,
-      v3: v3Exists,
-      status: (v2Exists || v3Exists) ? 'YES' : 'NO'
-    };
-  } catch (error) {
-    console.error('Error checking liquidity:', error);
-    return { v2: false, v3: false, status: 'ERROR' };
-  }
-}
-
-async function getTokenMetadata(
-  contractAddress: string,
-  provider: ethers.Provider
-): Promise<any> {
-  try {
-    const contract = new ethers.Contract(
-      contractAddress,
-      [
-        'function name() view returns (string)',
-        'function symbol() view returns (string)',
-        'function decimals() view returns (uint8)',
-        'function totalSupply() view returns (uint256)'
-      ],
-      provider
-    );
-
-    const [name, symbol, decimals, totalSupply] = await Promise.all([
-      contract.name().catch(() => 'Unknown'),
-      contract.symbol().catch(() => 'UNKNOWN'),
-      contract.decimals().catch(() => 18),
-      contract.totalSupply().catch(() => '0')
-    ]);
-
-    return {
-      name,
-      symbol,
-      decimals: Number(decimals),
-      total_supply: Number(ethers.formatUnits(totalSupply, decimals))
-    };
-  } catch (error) {
-    console.error('Error getting token metadata:', error);
-    return {
-      name: 'Unknown',
-      symbol: 'UNKNOWN',
-      decimals: 18,
-      total_supply: 0
-    };
-  }
-}
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -243,7 +121,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Save empty scan history
-      await saveScanHistory({
+      await recordScanHistory({
         chain: chainConfig.name,
         blocks_scanned: 0,
         total_contracts: 0,
@@ -298,7 +176,7 @@ export async function GET(request: NextRequest) {
       const errorMsg = `Failed to connect to ${chainConfig.name} RPC. Please check your RPC URL.`;
       
       // Save error to scan history
-      await saveScanHistory({
+      await recordScanHistory({
         chain: chainConfig.name,
         blocks_scanned: 0,
         total_contracts: 0,
@@ -317,65 +195,8 @@ export async function GET(request: NextRequest) {
 
     // Scan blocks
     const startBlock = latestBlock - blocks + 1;
-    const results: TokenContract[] = [];
-
     console.log(`Scanning ${chainConfig.name} from block ${startBlock} to ${latestBlock}`);
-
-    for (let blockNumber = startBlock; blockNumber <= latestBlock; blockNumber++) {
-      try {
-        const block = await provider.getBlock(blockNumber, true);
-        if (!block || !block.transactions) continue;
-
-        const transactions = block.transactions as string[];
-        
-        for (const txHash of transactions) {
-          if (typeof txHash !== 'string') continue;
-          
-          const tx = await provider.getTransaction(txHash);
-          if (!tx || tx.to !== null) continue;
-          
-          const receipt = await provider.getTransactionReceipt(tx.hash);
-          if (!receipt || !receipt.contractAddress) continue;
-
-          // Get token metadata
-          const metadata = await getTokenMetadata(receipt.contractAddress, provider);
-          
-          // Skip if not a token (no name or symbol)
-          if (metadata.name === 'Unknown' && metadata.symbol === 'UNKNOWN') continue;
-
-          // Check liquidity
-          const lpInfo = await checkLiquidity(receipt.contractAddress, provider, chainConfig);
-
-          const result: TokenContract = {
-            chain: chainConfig.name,
-            chain_id: chainConfig.chainId,
-            is_op_stack: chainConfig.isOpStack,
-            block: blockNumber,
-            hash: tx.hash,
-            deployer: tx.from,
-            contract_address: receipt.contractAddress,
-            timestamp: new Date(block.timestamp * 1000).toISOString(),
-            metadata,
-            lp_info: lpInfo,
-            explorer_url: `${chainConfig.explorerUrl}/address/${receipt.contractAddress}`
-          };
-
-          results.push(result);
-          
-          // Save to database
-          try {
-            await saveTokenDeployment(result);
-            console.log(`✅ Saved to DB: ${metadata.symbol} at ${receipt.contractAddress}`);
-          } catch (dbError) {
-            console.error('Database save error:', dbError);
-          }
-
-          console.log(`Found token: ${metadata.symbol} at ${receipt.contractAddress}`);
-        }
-      } catch (error) {
-        console.error(`Error processing block ${blockNumber}:`, error);
-      }
-    }
+    const results = await scanBlocks(provider, chainConfig, startBlock, latestBlock);
 
     // Update cache
     scanCache.set(cacheKey, {
@@ -390,7 +211,7 @@ export async function GET(request: NextRequest) {
 
     // Save scan history
     try {
-      await saveScanHistory({
+      await recordScanHistory({
         chain: chainConfig.name,
         blocks_scanned: blocks,
         total_contracts: results.length,
@@ -424,7 +245,7 @@ export async function GET(request: NextRequest) {
     
     // Save error to scan history
     try {
-      await saveScanHistory({
+      await recordScanHistory({
         chain: 'unknown',
         blocks_scanned: 0,
         total_contracts: 0,
