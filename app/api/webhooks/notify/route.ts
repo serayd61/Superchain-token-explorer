@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { Subscription as SubscriptionModel } from '@prisma/client';
 
-// This would be imported from subscribe route in production
 interface NotificationFilter {
   chains: string[];
   minLiquidity?: number;
@@ -9,34 +10,28 @@ interface NotificationFilter {
   tokenSymbolPattern?: string;
 }
 
-interface Subscription {
-  id: string;
-  filters: NotificationFilter;
-  webhookUrl?: string;
-  email?: string;
-  telegram?: string;
-  createdAt: string;
-  lastNotified?: string;
-}
-
-// Temporary - in production, share this with subscribe route
-const subscriptions = new Map<string, Subscription>();
+type Subscription = SubscriptionModel & { filters: NotificationFilter };
 
 export async function POST(request: NextRequest) {
   try {
     const token = await request.json();
-    
-    // Notify all matching subscribers
-    const notifications = [];
-    
-    for (const [id, subscription] of subscriptions) {
+
+    const subs = await prisma.subscription.findMany();
+    const notifications: Promise<any>[] = [];
+
+    for (const sub of subs) {
+      const subscription: Subscription = {
+        ...sub,
+        filters: sub.filters as unknown as NotificationFilter
+      };
+
       if (matchesFilters(token, subscription.filters)) {
         notifications.push(notifySubscriber(subscription, token));
       }
     }
-    
+
     await Promise.allSettled(notifications);
-    
+
     return NextResponse.json({
       success: true,
       notified: notifications.length
@@ -88,50 +83,140 @@ function matchesFilters(token: any, filters: NotificationFilter): boolean {
 
 async function notifySubscriber(subscription: Subscription, token: any) {
   const promises = [];
-  
+
   if (subscription.webhookUrl) {
-    promises.push(sendWebhook(subscription.webhookUrl, token));
+    promises.push(withRetry(() => sendWebhook(subscription.webhookUrl!, token), 'webhook', subscription.id));
   }
-  
+
   if (subscription.email) {
-    promises.push(sendEmail(subscription.email, token));
+    promises.push(withRetry(() => sendEmail(subscription.email!, token), 'email', subscription.id));
   }
-  
+
   if (subscription.telegram) {
-    promises.push(sendTelegram(subscription.telegram, token));
+    promises.push(withRetry(() => sendTelegram(subscription.telegram!, token), 'telegram', subscription.id));
   }
-  
+
   return Promise.allSettled(promises);
 }
 
 async function sendWebhook(url: string, token: any) {
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event: 'new_token',
-        timestamp: new Date().toISOString(),
-        data: token
-      })
-    });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      event: 'new_token',
+      timestamp: new Date().toISOString(),
+      data: token
+    })
+  });
 
-    if (!response.ok) {
-      console.error('Webhook failed:', response.status);
-    }
-  } catch (error) {
-    console.error('Webhook error:', error);
+  if (!response.ok) {
+    throw new Error(`Webhook failed: ${response.status}`);
   }
 }
 
 async function sendEmail(email: string, token: any) {
-  // TODO: Implement with SendGrid or similar
-  console.log(`Would send email to ${email} about token ${token.metadata.symbol}`);
+  const subject = `New token ${token.metadata.symbol}`;
+  const text = `Token ${token.metadata.name} (${token.metadata.symbol}) detected on ${token.chain}`;
+
+  if (process.env.SENDGRID_API_KEY) {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email }] }],
+        from: { email: process.env.EMAIL_FROM || 'no-reply@example.com' },
+        subject,
+        content: [{ type: 'text/plain', value: text }]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`SendGrid failed: ${response.status}`);
+    }
+    return;
+  }
+
+  if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
+    const auth = Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString('base64');
+    const body = new URLSearchParams({
+      from: process.env.EMAIL_FROM || 'no-reply@example.com',
+      to: email,
+      subject,
+      text
+    }).toString();
+
+    const response = await fetch(`https://api.mailgun.net/v3/${process.env.MAILGUN_DOMAIN}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body
+    });
+
+    if (!response.ok) {
+      throw new Error(`Mailgun failed: ${response.status}`);
+    }
+    return;
+  }
+
+  throw new Error('No email provider configured');
 }
 
 async function sendTelegram(chatId: string, token: any) {
-  // TODO: Implement with Telegram Bot API
-  console.log(`Would send Telegram to ${chatId} about token ${token.metadata.symbol}`);
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    throw new Error('Telegram bot token not configured');
+  }
+
+  const text = `Token ${token.metadata.name} (${token.metadata.symbol}) detected on ${token.chain}`;
+  const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Telegram failed: ${response.status}`);
+  }
+}
+
+async function withRetry(
+  fn: () => Promise<void>,
+  channel: string,
+  subscriptionId: string,
+  maxRetries = 3
+) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      await fn();
+      return;
+    } catch (error) {
+      attempt++;
+      console.error(`Notification ${channel} attempt ${attempt} failed`, error);
+      if (attempt >= maxRetries) {
+        await prisma.notificationLog.create({
+          data: {
+            subscriptionId,
+            channel,
+            error: String(error),
+            attempts: attempt
+          }
+        });
+      } else {
+        await new Promise(res => setTimeout(res, 1000 * attempt));
+      }
+    }
+  }
 }
