@@ -1,80 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-import { saveTokenDeployment, saveScanHistory } from '@/lib/database';
-
-// Chain configurations with RPC endpoints
-const chainConfigs = {
-  base: {
-    name: 'base',
-    chainId: 8453,
-    rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-    explorerUrl: 'https://basescan.org',
-    isOpStack: true,
-    wethAddress: '0x4200000000000000000000000000000000000006',
-    uniswapV2Factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
-    uniswapV3Factory: '0x33128a8fC17869897dcE68Ed026d694621f6FDfD'
-  },
-  optimism: {
-    name: 'optimism',
-    chainId: 10,
-    rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
-    explorerUrl: 'https://optimistic.etherscan.io',
-    isOpStack: true,
-    wethAddress: '0x4200000000000000000000000000000000000006',
-    uniswapV2Factory: '0x31F63A33141fFee63D4B26755430a390ACdD8a4d',
-    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
-  },
-  mode: {
-    name: 'mode',
-    chainId: 34443,
-    rpcUrl: process.env.MODE_RPC_URL || 'https://mainnet.mode.network',
-    explorerUrl: 'https://explorer.mode.network',
-    isOpStack: true,
-    wethAddress: '0x4200000000000000000000000000000000000006',
-    uniswapV2Factory: '0x31F63A33141fFee63D4B26755430a390ACdD8a4d',
-    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
-  },
-  zora: {
-    name: 'zora',
-    chainId: 7777777,
-    rpcUrl: process.env.ZORA_RPC_URL || 'https://rpc.zora.energy',
-    explorerUrl: 'https://explorer.zora.energy',
-    isOpStack: true,
-    wethAddress: '0x4200000000000000000000000000000000000006',
-    uniswapV2Factory: '0x31F63A33141fFee63D4B26755430a390ACdD8a4d',
-    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
-  },
-  arbitrum: {
-    name: 'arbitrum',
-    chainId: 42161,
-    rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
-    explorerUrl: 'https://arbiscan.io',
-    isOpStack: false,
-    wethAddress: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-    uniswapV2Factory: '0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9',
-    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
-  },
-  polygon: {
-    name: 'polygon',
-    chainId: 137,
-    rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
-    explorerUrl: 'https://polygonscan.com',
-    isOpStack: false,
-    wethAddress: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
-    uniswapV2Factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32',
-    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
-  },
-  ethereum: {
-    name: 'ethereum',
-    chainId: 1,
-    rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://ethereum.publicnode.com',
-    explorerUrl: 'https://etherscan.io',
-    isOpStack: false,
-    wethAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-    uniswapV2Factory: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
-    uniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984'
-  }
-};
+import { chainConfigs, ChainConfig } from '@/lib/chains';
 
 interface TokenContract {
   chain: string;
@@ -115,9 +41,9 @@ const scanCache = new Map<string, {
 const CACHE_DURATION = 60 * 1000; // 1 minute
 
 async function checkLiquidity(
-  tokenAddress: string, 
+  tokenAddress: string,
   provider: ethers.Provider,
-  chainConfig: typeof chainConfigs[keyof typeof chainConfigs]
+  chainConfig: ChainConfig
 ): Promise<{ v2: boolean; v3: boolean; status: string }> {
   try {
     let v2Exists = false;
