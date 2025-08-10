@@ -1,45 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// This would be imported from subscribe route in production
-interface NotificationFilter {
-  chains: string[];
-  minLiquidity?: number;
-  hasLiquidity: boolean;
-  tokenNamePattern?: string;
-  tokenSymbolPattern?: string;
-}
-
-interface Subscription {
-  id: string;
-  filters: NotificationFilter;
-  webhookUrl?: string;
-  email?: string;
-  telegram?: string;
-  createdAt: string;
-  lastNotified?: string;
-}
-
-// Temporary - in production, share this with subscribe route
-const subscriptions = new Map<string, Subscription>();
+import { listSubscriptions, Subscription, NotificationFilter } from '@/lib/database';
 
 export async function POST(request: NextRequest) {
   try {
     const token = await request.json();
-    
-    // Notify all matching subscribers
-    const notifications = [];
-    
-    for (const [id, subscription] of subscriptions) {
+    const subs = await listSubscriptions();
+    const notifications: Promise<any>[] = [];
+
+    for (const subscription of subs) {
       if (matchesFilters(token, subscription.filters)) {
         notifications.push(notifySubscriber(subscription, token));
       }
     }
-    
+
     await Promise.allSettled(notifications);
-    
+
     return NextResponse.json({
       success: true,
-      notified: notifications.length
+      notified: notifications.length,
     });
   } catch (error) {
     return NextResponse.json({

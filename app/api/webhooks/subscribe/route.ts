@@ -1,30 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-interface NotificationFilter {
-  chains: string[];
-  minLiquidity?: number;
-  hasLiquidity: boolean;
-  tokenNamePattern?: string;
-  tokenSymbolPattern?: string;
-}
-
-interface Subscription {
-  id: string;
-  filters: NotificationFilter;
-  webhookUrl?: string;
-  email?: string;
-  telegram?: string;
-  createdAt: string;
-  lastNotified?: string;
-}
-
-// In production, use a database
-const subscriptions = new Map<string, Subscription>();
+import {
+  createSubscription,
+  listSubscriptions,
+  deleteSubscription,
+  NotificationFilter,
+} from '@/lib/database';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { filters, webhookUrl, email, telegram } = body;
+    const { filters, webhookUrl, email, telegram } = body as {
+      filters: NotificationFilter;
+      webhookUrl?: string;
+      email?: string;
+      telegram?: string;
+    };
 
     // Validate at least one notification method
     if (!webhookUrl && !email && !telegram) {
@@ -34,26 +24,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate subscription ID
-    const subscriptionId = crypto.randomUUID();
-
-    // Create subscription
-    const subscription: Subscription = {
-      id: subscriptionId,
+    const subscription = await createSubscription({
       filters,
       webhookUrl,
       email,
       telegram,
-      createdAt: new Date().toISOString()
-    };
-
-    // Store subscription
-    subscriptions.set(subscriptionId, subscription);
+    });
 
     return NextResponse.json({
       success: true,
-      subscriptionId,
-      message: 'Subscription created successfully'
+      subscriptionId: subscription.id,
+      message: 'Subscription created successfully',
     });
   } catch (error) {
     return NextResponse.json({
@@ -64,10 +45,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  // List subscriptions (for debugging)
-  return NextResponse.json({
-    subscriptions: Array.from(subscriptions.values())
-  });
+  const subs = await listSubscriptions();
+  return NextResponse.json({ subscriptions: subs });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -81,12 +60,10 @@ export async function DELETE(request: NextRequest) {
     }, { status: 400 });
   }
 
-  if (subscriptions.delete(subscriptionId)) {
-    return NextResponse.json({
-      success: true,
-      message: 'Subscription deleted'
-    });
-  } else {
+  try {
+    await deleteSubscription(subscriptionId);
+    return NextResponse.json({ success: true, message: 'Subscription deleted' });
+  } catch (e) {
     return NextResponse.json({
       success: false,
       error: 'Subscription not found'
