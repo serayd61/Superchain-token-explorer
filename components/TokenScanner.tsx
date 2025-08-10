@@ -2,79 +2,10 @@
 
 import { useState, lazy, Suspense } from 'react';
 import DeployerLeaderboard from './DeployerLeaderboard';
+import { CHAINS } from '@/lib/chains';
 
 // Lazy load the safety analyzer to improve initial load time
 const TokenSafetyAnalyzer = lazy(() => import('./TokenSafetyAnalyzer'));
-
-interface ChainOption {
-  id: string;
-  name: string;
-  displayName: string;
-  color: string;
-  icon: string;
-  isOpStack: boolean;
-}
-
-const CHAINS: ChainOption[] = [
-  // OP Stack Chains
-  {
-    id: 'base',
-    name: 'base',
-    displayName: 'Base',
-    color: 'bg-blue-500',
-    icon: '🔵',
-    isOpStack: true
-  },
-  {
-    id: 'optimism',
-    name: 'optimism',
-    displayName: 'OP Mainnet',
-    color: 'bg-red-500',
-    icon: '🔴',
-    isOpStack: true
-  },
-  {
-    id: 'mode',
-    name: 'mode',
-    displayName: 'Mode',
-    color: 'bg-green-500',
-    icon: '🟢',
-    isOpStack: true
-  },
-  {
-    id: 'zora',
-    name: 'zora',
-    displayName: 'Zora',
-    color: 'bg-purple-500',
-    icon: '🟣',
-    isOpStack: true
-  },
-  // Other Chains
-  {
-    id: 'ethereum',
-    name: 'ethereum',
-    displayName: 'Ethereum',
-    color: 'bg-gray-700',
-    icon: '⟠',
-    isOpStack: false
-  },
-  {
-    id: 'arbitrum',
-    name: 'arbitrum',
-    displayName: 'Arbitrum',
-    color: 'bg-blue-600',
-    icon: '🔷',
-    isOpStack: false
-  },
-  {
-    id: 'polygon',
-    name: 'polygon',
-    displayName: 'Polygon',
-    color: 'bg-purple-600',
-    icon: '🟣',
-    isOpStack: false
-  }
-];
 
 export interface TokenContract {
   chain: string;

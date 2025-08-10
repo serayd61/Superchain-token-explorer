@@ -1,51 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-
-// Chain configurations with API keys
-const chainConfigs = {
-  base: { 
-    rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-    explorerUrl: 'https://basescan.org',
-    explorerApiUrl: 'https://api.basescan.org/api',
-    apiKey: process.env.BASESCAN_API_KEY || ''
-  },
-  optimism: { 
-    rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
-    explorerUrl: 'https://optimistic.etherscan.io',
-    explorerApiUrl: 'https://api-optimistic.etherscan.io/api',
-    apiKey: process.env.OPTIMISM_API_KEY || ''
-  },
-  ethereum: { 
-    rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://ethereum.publicnode.com',
-    explorerUrl: 'https://etherscan.io',
-    explorerApiUrl: 'https://api.etherscan.io/api',
-    apiKey: process.env.ETHERSCAN_API_KEY || ''
-  },
-  arbitrum: {
-    rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arbitrum.publicnode.com',
-    explorerUrl: 'https://arbiscan.io',
-    explorerApiUrl: 'https://api.arbiscan.io/api',
-    apiKey: process.env.ARBISCAN_API_KEY || ''
-  },
-  polygon: {
-    rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon.llamarpc.com',
-    explorerUrl: 'https://polygonscan.com',
-    explorerApiUrl: 'https://api.polygonscan.com/api',
-    apiKey: process.env.POLYGONSCAN_API_KEY || ''
-  },
-  mode: {
-    rpcUrl: process.env.MODE_RPC_URL || 'https://mainnet.mode.network',
-    explorerUrl: 'https://explorer.mode.network',
-    explorerApiUrl: 'https://explorer.mode.network/api',
-    apiKey: ''  // Mode doesn't use Etherscan API
-  },
-  zora: {
-    rpcUrl: process.env.ZORA_RPC_URL || 'https://rpc.zora.energy',
-    explorerUrl: 'https://explorer.zora.energy',
-    explorerApiUrl: 'https://explorer.zora.energy/api',
-    apiKey: ''  // Zora doesn't use Etherscan API
-  }
-};
+import { chainConfigs } from '@/lib/chains';
 
 // Enhanced ERC20 ABI for safety checks
 const SAFETY_CHECK_ABI = [
