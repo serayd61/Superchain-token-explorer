@@ -215,8 +215,21 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const chain = searchParams.get('chain') || 'base';
-    const blocks = parseInt(searchParams.get('blocks') || '10');
+    const blocksParam = parseInt(searchParams.get('blocks') || '10', 10);
     const opStackOnly = searchParams.get('opStackOnly') === 'true';
+
+    // Validate blocks range (1-100)
+    if (isNaN(blocksParam) || blocksParam < 1 || blocksParam > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid blocks parameter: must be between 1 and 100'
+        },
+        { status: 400 }
+      );
+    }
+
+    const blocks = blocksParam;
 
     // Validate chain
     if (!chainConfigs[chain as keyof typeof chainConfigs]) {

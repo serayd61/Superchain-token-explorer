@@ -138,7 +138,7 @@ export default function TokenScanner() {
   const handleScan = async () => {
     setIsScanning(true);
     setError(null);
-    
+
     try {
       const response = await fetch(
         `/api/scan?chain=${selectedChain}&blocks=${blockCount}&opStackOnly=${opStackOnly}`,
@@ -149,17 +149,21 @@ export default function TokenScanner() {
           },
         }
       );
-      
+
+      const data: ScanResult | null = await response
+        .json()
+        .catch(() => null);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        setError(data?.error || `Request failed with status ${response.status}`);
+        setScanResults(null);
+        return;
       }
-      
-      const data: ScanResult = await response.json();
-      
-      if (data.success) {
+
+      if (data && data.success) {
         setScanResults(data);
       } else {
-        setError(data.error || 'Scan failed');
+        setError(data?.error || 'Scan failed');
       }
     } catch (err) {
       console.error('Scan error:', err);
@@ -300,7 +304,14 @@ export default function TokenScanner() {
               min="1"
               max="100"
               value={blockCount}
-              onChange={(e) => setBlockCount(parseInt(e.target.value) || 10)}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                if (isNaN(value)) {
+                  setBlockCount(10);
+                } else {
+                  setBlockCount(Math.min(100, Math.max(1, value)));
+                }
+              }}
               disabled={isScanning}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             />
