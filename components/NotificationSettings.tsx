@@ -1,8 +1,9 @@
 "use client";
-import React, { useState } from 'react';
-import { Bell, Mail, MessageSquare, Webhook } from 'lucide-react';
 
-export function NotificationSettings() {
+import React, { useState } from "react";
+import { Bell, Mail, MessageSquare, Webhook } from "lucide-react";
+
+export default function NotificationSettings() {
   const [filters, setFilters] = useState({
     chains: [] as string[],
     hasLiquidity: true,
