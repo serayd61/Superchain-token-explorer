@@ -1,15 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-
-/**
- * PriceAlerts.tsx — single-piece rewrite
- * - All action buttons: type="button" (form submit engellenir)
- * - Edit button className tamam
- * - Fiyat input sanitize (boşluk/harf temizleme, tek nokta, virgül→nokta)
- * - Düzenlemede kopya uyarı kontrolü (mevcut id hariç)
- * - İlk yüklemede loading state (flicker yok)
- * - A11y: aria-live, aria-invalid vs.
- */
+import { format } from "date-fns";
 
 type Currency = "USD" | "CHF" | "EUR";
 type Comparator = "above" | "below" | "crosses";
@@ -18,11 +9,14 @@ type Alert = {
   id: string;
   coin: string;
   comparator: Comparator;
-  price: number; // threshold in selected currency
+  price: number;
   currency: Currency;
   note?: string;
   enabled: boolean;
-  createdAt: string; // ISO
+  createdAt: string;
+  createdBy: string;
+  lastModifiedAt: string;
+  lastModifiedBy: string;
 };
 
 const SUPPORTED_COINS = [
@@ -47,7 +41,8 @@ function classNames(...c: (string | false | null | undefined)[]) {
 }
 function validatePositiveNumber(value: string): number | null {
   if (!value) return null;
-  const num = Number(value);
+  const cleaned = value.replace(/[^0-9.,]/g, "").replace(",", ".");
+  const num = Number(cleaned);
   if (Number.isFinite(num) && num > 0) return num;
   return null;
 }
@@ -59,9 +54,12 @@ function sanitizePriceInput(raw: string): string {
   if (parts.length <= 1) return only;
   return parts[0] + "." + parts.slice(1).join("").replace(/\./g, "");
 }
+// helper to format now as 'yyyy-MM-dd HH:mm:ss'
+function formatDateTime() {
+  return format(new Date(), "yyyy-MM-dd HH:mm:ss");
+}
 
 export default function PriceAlerts() {
-  // ---------------- State ----------------
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [coin, setCoin] = useState<string>(SUPPORTED_COINS[0]);
   const [comparator, setComparator] = useState<Comparator>("above");
@@ -70,27 +68,69 @@ export default function PriceAlerts() {
   const [note, setNote] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
-  const [loaded, setLoaded] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
 
-  // -------------- Persistence --------------
+  // new: current date/time + user
+  const [currentDateTime, setCurrentDateTime] = useState<string>("");
+  const [currentUser, setCurrentUser] = useState<string>("");
+
+  // Initialize timer & current user
+  useEffect(() => {
+    setCurrentDateTime(formatDateTime());
+    setCurrentUser("serayd61"); // adapt if you have a real auth/user source
+
+    const timer = setInterval(() => {
+      setCurrentDateTime(formatDateTime());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load from localStorage (with simple migration for old entries)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Alert[];
-        if (Array.isArray(parsed)) setAlerts(parsed);
+        const parsed = JSON.parse(raw) as Partial<Alert>[];
+        if (Array.isArray(parsed)) {
+          const migrated: Alert[] = parsed.map((a) => {
+            // backfill fields if missing
+            const createdAt =
+              a.createdAt ??
+              // if previously stored as Date string via toISOString
+              new Date().toISOString();
+            const createdBy = a.createdBy ?? "unknown";
+            const lastModifiedAt = a.lastModifiedAt ?? createdAt;
+            const lastModifiedBy = a.lastModifiedBy ?? createdBy;
+
+            return {
+              id: String(a.id ?? uid()),
+              coin: String(a.coin ?? "BTC"),
+              comparator: (a.comparator as Comparator) ?? "above",
+              price: Number(a.price ?? 0),
+              currency: (a.currency as Currency) ?? "CHF",
+              note: a.note,
+              enabled: Boolean(a.enabled ?? true),
+              createdAt: String(createdAt),
+              createdBy: String(createdBy),
+              lastModifiedAt: String(lastModifiedAt),
+              lastModifiedBy: String(lastModifiedBy),
+            };
+          });
+          setAlerts(migrated);
+        }
       }
     } catch (e) {
       console.warn("Failed to parse saved alerts", e);
     } finally {
-      setLoaded(true);
+      setLoading(false);
     }
   }, []);
 
+  // Persist
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
-      // Optional external event
       window.dispatchEvent(
         new CustomEvent("price-alerts-changed", { detail: { alerts } })
       );
@@ -99,14 +139,12 @@ export default function PriceAlerts() {
     }
   }, [alerts]);
 
-  // -------------- Derived --------------
   const totalCount = alerts.length;
   const activeCount = useMemo(
     () => alerts.filter((a) => a.enabled).length,
     [alerts]
   );
 
-  // -------------- Handlers --------------
   function resetForm() {
     setCoin(SUPPORTED_COINS[0]);
     setComparator("above");
@@ -127,7 +165,7 @@ export default function PriceAlerts() {
       return;
     }
 
-    // Prevent duplicates (exclude currently edited id)
+    // duplicate guard (exclude item under edit)
     const duplicate = alerts.some(
       (a) =>
         a.coin === coin &&
@@ -152,6 +190,8 @@ export default function PriceAlerts() {
                 price,
                 currency,
                 note: note || undefined,
+                lastModifiedAt: currentDateTime,
+                lastModifiedBy: currentUser,
               }
             : a
         )
@@ -159,6 +199,9 @@ export default function PriceAlerts() {
       resetForm();
       return;
     }
+
+    const now = currentDateTime;
+    const user = currentUser;
 
     const newAlert: Alert = {
       id: uid(),
@@ -168,8 +211,12 @@ export default function PriceAlerts() {
       currency,
       note: note || undefined,
       enabled: true,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      createdBy: user,
+      lastModifiedAt: now,
+      lastModifiedBy: user,
     };
+
     setAlerts((prev) => [newAlert, ...prev]);
     resetForm();
   }
@@ -200,15 +247,15 @@ export default function PriceAlerts() {
     );
   }
 
-  // -------------- UI --------------
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-lg p-6 md:p-8 border border-black/5 dark:border-white/10">
-      {/* Live region for status updates */}
+      {/* Screen-reader live region */}
       <p className="sr-only" aria-live="polite">
         {activeCount} active alerts out of {totalCount} total.
       </p>
 
-      <div className="flex items-center justify-between gap-4 mb-6">
+      {/* Title bar */}
+      <div className="flex items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Price Alerts
@@ -224,6 +271,28 @@ export default function PriceAlerts() {
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
             Active: <strong className="font-semibold">{activeCount}</strong>
           </span>
+        </div>
+      </div>
+
+      {/* New: date/time + user info bar */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6 p-4 bg-gray-50 dark:bg-white/5 rounded-lg">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Current Date and Time:
+            </span>
+            <span className="text-sm text-gray-800 dark:text-gray-100 font-mono">
+              {currentDateTime}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Current User's Login:
+            </span>
+            <span className="text-sm text-gray-800 dark:text-gray-100">
+              {currentUser}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -252,7 +321,7 @@ export default function PriceAlerts() {
           </select>
         </div>
 
-        {/* Comparator */}
+        {/* Condition */}
         <div className="md:col-span-2">
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
             Condition
@@ -280,7 +349,7 @@ export default function PriceAlerts() {
             value={priceInput}
             onChange={(e) => setPriceInput(sanitizePriceInput(e.target.value))}
             onKeyDown={(e) => {
-              if (e.key === " ") e.preventDefault(); // space blok
+              if (e.key === " ") e.preventDefault();
             }}
             aria-invalid={!!error}
             className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -349,7 +418,7 @@ export default function PriceAlerts() {
         </div>
       </form>
 
-      {/* List */}
+      {/* Table */}
       <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-white/10">
           <thead className="bg-gray-50 dark:bg-white/5">
@@ -359,20 +428,22 @@ export default function PriceAlerts() {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300">Threshold</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300">Note</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300">Created</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300">Created By</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300">Last Modified</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300">Status</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-white/10 bg-white dark:bg-neutral-900">
-            {!loaded ? (
+            {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                   Loading alerts…
                 </td>
               </tr>
             ) : alerts.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400" aria-live="polite">
+                <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400" aria-live="polite">
                   No alerts yet. Create your first one above.
                 </td>
               </tr>
@@ -388,7 +459,13 @@ export default function PriceAlerts() {
                     {a.note ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {new Date(a.createdAt).toLocaleString()}
+                    {a.createdAt}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {a.createdBy}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {a.lastModifiedBy} ({a.lastModifiedAt})
                   </td>
                   <td className="px-4 py-3">
                     <span
