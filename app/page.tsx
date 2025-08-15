@@ -1,73 +1,82 @@
+// app/page.tsx  (or pages/index.tsx)
+import ChainSelector from '@/components/ChainSelector';
+import DeployerLeaderboard from '@/components/DeployerLeaderboard';
+import NotificationSettings from '@/components/NotificationSettings';
+import PriceAlerts from '@/components/PriceAlerts';
+import TokenSafetyAnalyzer from '@/components/TokenSafetyAnalyzer';
 import TokenScanner from '@/components/TokenScanner';
+import TokenTable from '@/components/TokenTable';
+
+// If these live under /components/superchain/ as you showed:
 import SuperchainDashboard from '@/components/superchain/SuperchainDashboard';
 import CrossChainTokenTracker from '@/components/superchain/CrossChainTokenTracker';
-import PriceAlerts from '@/components/PriceAlerts';  // ✅ PriceAlerts import edildi
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="container mx-auto py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-600">Superchain</span>
-            </div>
-            <div className="w-px h-6 bg-gray-300"></div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-medium text-gray-600">OP Stack</span>
-            </div>
-          </div>
-          
-          <h1 className="text-5xl font-bold text-gray-800 mb-6">
-            🚀 <span className="bg-gradient-to-r from-red-500 to-purple-600 bg-clip-text text-transparent">Superchain</span> Token Explorer
+      <div className="container mx-auto py-8 space-y-12">
+        {/* ── Hero / Header ───────────────────────────────────────────── */}
+        <section className="text-center">
+          <h1 className="text-5xl font-bold text-gray-800 mb-3">
+            🚀 <span className="bg-gradient-to-r from-red-500 to-purple-600 bg-clip-text text-transparent">
+              Superchain
+            </span>{" "}
+            Token Explorer
           </h1>
-          
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Discover new token deployments across the <strong>Optimism Superchain</strong> ecosystem. 
-            Monitor liquidity pools, track prices, and analyze smart contracts in real-time across 
-            <span className="text-red-600 font-semibold"> Base, OP Mainnet, Mode, Zora</span> and more!
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            Track new token deployments and on-chain activity across the Optimism Superchain ecosystem.
           </p>
-        </div>
-        
-        {/* Main Scanner Component */}
-        <TokenScanner />
-        
-        {/* Yeni Superchain Dashboard */}
-        <div className="mt-8">
-          <SuperchainDashboard />
-        </div>
+        </section>
 
-        {/* Cross-Chain Token Tracker */}
-        <CrossChainTokenTracker />
-
-        {/* ✅ Price Alerts Section */}
-        <div className="mt-12">
-          <PriceAlerts />
-        </div>
-        
-        {/* Features Section */}
-        <div className="mt-16 text-center">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-6xl mx-auto">
-            <h2 className="text-3xl font-semibold text-gray-800 mb-6">
-              🌐 Powered by the <span className="text-red-600">Superchain</span>
-            </h2>
-            
-            {/* ... diğer feature kartları aynı kalıyor ... */}
+        {/* ── Superchain Dashboard + Cross-Chain Tracker ──────────────── */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Superchain Overview</h2>
+          <div className="grid grid-cols-1 gap-6">
+            <SuperchainDashboard />
+            <CrossChainTokenTracker />
           </div>
-        </div>
+        </section>
 
-        {/* Footer */}
-        <div className="mt-12 text-center text-gray-500 text-sm">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-            <span>Proudly building on the Superchain</span>
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+        {/* ── Chain Selector + Token Scanner ──────────────────────────── */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Scanner</h2>
+          <div className="grid grid-cols-1 gap-6">
+            <ChainSelector />
+            <TokenScanner />
           </div>
-          <p>Contributing to the future of decentralized applications across OP Stack chains</p>
-        </div>
+        </section>
+
+        {/* ── Token Table / Listings ──────────────────────────────────── */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Recent Tokens</h2>
+          <TokenTable />
+        </section>
+
+        {/* ── Safety Analyzer ─────────────────────────────────────────── */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Token Safety Analyzer</h2>
+          <TokenSafetyAnalyzer />
+        </section>
+
+        {/* ── Alerts + Notifications ──────────────────────────────────── */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Alerts & Notifications</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <PriceAlerts />             {/* uses localStorage; client-safe */}
+            <NotificationSettings />
+          </div>
+        </section>
+
+        {/* ── Deployer Leaderboard ────────────────────────────────────── */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Top Deployers</h2>
+          <DeployerLeaderboard />
+        </section>
+
+        {/* ── Footer ─────────────────────────────────────────────────── */}
+        <footer className="pt-6 text-center text-gray-500 text-sm">
+          <p>Proudly building on the Superchain • OP Stack</p>
+        </footer>
       </div>
     </main>
   );
