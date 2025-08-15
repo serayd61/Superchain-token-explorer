@@ -2,17 +2,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 /**
- * PriceAlerts.tsx — Clean standalone component
- * -------------------------------------------------
- * ✅ Pure React + Tailwind (no external UI deps)
- * ✅ TypeScript strict, self-contained, no API calls
- * ✅ LocalStorage persistence
- * ✅ Create / Edit / Enable / Disable / Delete alerts
- * ✅ Coins & currencies aligned with Serkan's dashboard
- * ✅ Accessible and keyboard-friendly
- *
- * Drop under: /components/PriceAlerts.tsx
- * Use with:   <PriceAlerts />
+ * PriceAlerts.tsx — single-piece rewrite
+ * - All action buttons: type="button" (form submit engellenir)
+ * - Edit button className tamam
+ * - Fiyat input sanitize (boşluk/harf temizleme, tek nokta, virgül→nokta)
+ * - Düzenlemede kopya uyarı kontrolü (mevcut id hariç)
+ * - İlk yüklemede loading state (flicker yok)
+ * - A11y: aria-live, aria-invalid vs.
  */
 
 type Currency = "USD" | "CHF" | "EUR";
@@ -41,22 +37,27 @@ const SUPPORTED_COINS = [
 ] as const;
 
 const SUPPORTED_CURRENCIES: Currency[] = ["USD", "CHF", "EUR"];
-
 const STORAGE_KEY = "price_alerts_v1";
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
-
 function classNames(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
 }
-
 function validatePositiveNumber(value: string): number | null {
   if (!value) return null;
   const num = Number(value);
   if (Number.isFinite(num) && num > 0) return num;
   return null;
+}
+// allow digits + single dot, trim spaces, comma->dot
+function sanitizePriceInput(raw: string): string {
+  const trimmed = raw.replace(/\s+/g, "").replace(/,/g, ".");
+  const only = trimmed.replace(/[^0-9.]/g, "");
+  const parts = only.split(".");
+  if (parts.length <= 1) return only;
+  return parts[0] + "." + parts.slice(1).join("").replace(/\./g, "");
 }
 
 export default function PriceAlerts() {
@@ -69,6 +70,7 @@ export default function PriceAlerts() {
   const [note, setNote] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
+  const [loaded, setLoaded] = useState<boolean>(false);
 
   // -------------- Persistence --------------
   useEffect(() => {
@@ -76,19 +78,19 @@ export default function PriceAlerts() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Alert[];
-        if (Array.isArray(parsed)) {
-          setAlerts(parsed);
-        }
+        if (Array.isArray(parsed)) setAlerts(parsed);
       }
     } catch (e) {
       console.warn("Failed to parse saved alerts", e);
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
-      // Notify outside listeners (optional)
+      // Optional external event
       window.dispatchEvent(
         new CustomEvent("price-alerts-changed", { detail: { alerts } })
       );
@@ -125,15 +127,16 @@ export default function PriceAlerts() {
       return;
     }
 
-    // Prevent exact duplicates
+    // Prevent duplicates (exclude currently edited id)
     const duplicate = alerts.some(
       (a) =>
         a.coin === coin &&
         a.comparator === comparator &&
         a.currency === currency &&
-        a.price === price
+        a.price === price &&
+        a.id !== (editingId ?? "__none__")
     );
-    if (duplicate && !editingId) {
+    if (duplicate) {
       setError("An identical alert already exists.");
       return;
     }
@@ -142,7 +145,14 @@ export default function PriceAlerts() {
       setAlerts((prev) =>
         prev.map((a) =>
           a.id === editingId
-            ? { ...a, coin, comparator, price, currency, note: note || undefined }
+            ? {
+                ...a,
+                coin,
+                comparator,
+                price,
+                currency,
+                note: note || undefined,
+              }
             : a
         )
       );
@@ -160,7 +170,6 @@ export default function PriceAlerts() {
       enabled: true,
       createdAt: new Date().toISOString(),
     };
-
     setAlerts((prev) => [newAlert, ...prev]);
     resetForm();
   }
@@ -173,7 +182,6 @@ export default function PriceAlerts() {
     setCurrency(a.currency);
     setNote(a.note ?? "");
     setError("");
-    // Scroll form into view on small screens
     document.getElementById("price-alerts-form")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
@@ -181,7 +189,6 @@ export default function PriceAlerts() {
   }
 
   function onDelete(id: string) {
-    // Simple confirm; replace with a nicer modal if you prefer
     if (!confirm("Delete this alert? This cannot be undone.")) return;
     setAlerts((prev) => prev.filter((a) => a.id !== id));
     if (editingId === id) resetForm();
@@ -196,6 +203,11 @@ export default function PriceAlerts() {
   // -------------- UI --------------
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-lg p-6 md:p-8 border border-black/5 dark:border-white/10">
+      {/* Live region for status updates */}
+      <p className="sr-only" aria-live="polite">
+        {activeCount} active alerts out of {totalCount} total.
+      </p>
+
       <div className="flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -205,7 +217,7 @@ export default function PriceAlerts() {
             Local only
           </span>
         </div>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm" role="status" aria-live="polite">
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200">
             Total: <strong className="font-semibold">{totalCount}</strong>
           </span>
@@ -262,13 +274,15 @@ export default function PriceAlerts() {
             Price
           </label>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
-            min={0}
-            step="0.00000001"
             placeholder="0.00"
             value={priceInput}
-            onChange={(e) => setPriceInput(e.target.value)}
+            onChange={(e) => setPriceInput(sanitizePriceInput(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key === " ") e.preventDefault(); // space blok
+            }}
+            aria-invalid={!!error}
             className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
@@ -305,7 +319,7 @@ export default function PriceAlerts() {
           />
         </div>
 
-        {/* Submit */}
+        {/* Submit / Cancel */}
         <div className="md:col-span-12 flex items-center gap-3">
           <button
             type="submit"
@@ -322,13 +336,13 @@ export default function PriceAlerts() {
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium shadow-sm border border-gray-300 dark:border-white/10 text-gray-800 dark:text-gray-100"
+              className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium shadow-sm border border-gray-300 dark:border-white/10 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
             >
               Cancel
             </button>
           )}
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert" aria-live="polite">
               {error}
             </p>
           )}
@@ -350,9 +364,15 @@ export default function PriceAlerts() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-white/10 bg-white dark:bg-neutral-900">
-            {alerts.length === 0 ? (
+            {!loaded ? (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Loading alerts…
+                </td>
+              </tr>
+            ) : alerts.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400" aria-live="polite">
                   No alerts yet. Create your first one above.
                 </td>
               </tr>
@@ -364,7 +384,9 @@ export default function PriceAlerts() {
                   <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                     {a.price.toLocaleString(undefined, { maximumFractionDigits: 8 })} {a.currency}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-[240px] truncate" title={a.note}>{a.note ?? "—"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-[240px] truncate" title={a.note}>
+                    {a.note ?? "—"}
+                  </td>
                   <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {new Date(a.createdAt).toLocaleString()}
                   </td>
@@ -383,20 +405,23 @@ export default function PriceAlerts() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        type="button"
                         onClick={() => onToggle(a.id)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
                       >
                         {a.enabled ? "Disable" : "Enable"}
                       </button>
                       <button
+                        type="button"
                         onClick={() => onEditStart(a)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-indigo-300 text-indigo-700 dark:text-indigo-300 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-indigo-300 text-indigo-700 dark:text-indigo-300 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-300"
                       >
                         Edit
                       </button>
                       <button
+                        type="button"
                         onClick={() => onDelete(a.id)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-red-300 text-red-700 dark:text-red-300 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-red-300 text-red-700 dark:text-red-300 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-300"
                       >
                         Delete
                       </button>
@@ -410,7 +435,7 @@ export default function PriceAlerts() {
       </div>
 
       {/* Footer helper */}
-      <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mt-4 text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
         These alerts are stored locally in your browser (localStorage). Hook them up to your
         real-time price feed and notification system (e.g., toasts, email, Telegram) as needed.
       </p>
