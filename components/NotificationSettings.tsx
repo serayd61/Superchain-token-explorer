@@ -1,3 +1,4 @@
+"use client";
 import React, { useState } from 'react';
 import { Bell, Mail, MessageSquare, Webhook } from 'lucide-react';
 
