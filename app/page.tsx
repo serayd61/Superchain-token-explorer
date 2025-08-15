@@ -14,9 +14,31 @@ import TokenTable from "@/components/TokenTable";
 import SuperchainDashboard from "@/components/superchain/SuperchainDashboard";
 import CrossChainTokenTracker from "@/components/superchain/CrossChainTokenTracker";
 
+// Sample data for TokenTable component
+const sampleTokens = [
+  {
+    chain: "base",
+    block: 12345678,
+    hash: "0x1234567890abcdef1234567890abcdef12345678",
+    from: "0xabcdef1234567890abcdef1234567890abcdef12",
+    timestamp: new Date().toISOString(),
+    lp_status: "YES",
+    price_chart: [1, 1.2, 0.8, 1.5, 1.3, 1.1, 1.4] as number[]
+  },
+  {
+    chain: "optimism", 
+    block: 87654321,
+    hash: "0x9876543210fedcba9876543210fedcba98765432",
+    from: "0x9876543210fedcba9876543210fedcba98765432",
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    lp_status: "NO",
+    price_chart: "none" as "none"
+  }
+];
+
 export default function Home() {
   // Keep the selected chain here and pass it to ChainSelector
-  const [selectedChain, setSelectedChain] = useState<string>("base"); // "base" as a sensible default
+  const [selectedChain, setSelectedChain] = useState<string>("base");
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -53,9 +75,7 @@ export default function Home() {
               onChainChange={setSelectedChain}
             />
 
-            {/* If your TokenScanner accepts a prop for chain, pass it here.
-               Common names might be `selectedChain`, `chain`, or `chainId`. */}
-            {/* Example if supported: <TokenScanner selectedChain={selectedChain} /> */}
+            {/* TokenScanner doesn't need chain prop based on the component code */}
             <TokenScanner />
           </div>
         </section>
@@ -63,13 +83,19 @@ export default function Home() {
         {/* ── Token Table / Listings ──────────────────────────────────── */}
         <section className="space-y-6">
           <h2 className="text-2xl font-semibold text-gray-800">Recent Tokens</h2>
-          <TokenTable />
+          <TokenTable tokens={sampleTokens} />
         </section>
 
         {/* ── Safety Analyzer ─────────────────────────────────────────── */}
         <section className="space-y-6">
           <h2 className="text-2xl font-semibold text-gray-800">Token Safety Analyzer</h2>
-          <TokenSafetyAnalyzer />
+          {/* TokenSafetyAnalyzer needs props, so let's provide sample data */}
+          <TokenSafetyAnalyzer
+            contractAddress="0x1234567890abcdef1234567890abcdef12345678"
+            chain={selectedChain}
+            tokenSymbol="SAMPLE"
+            tokenName="Sample Token"
+          />
         </section>
 
         {/* ── Alerts + Notifications ──────────────────────────────────── */}
@@ -84,7 +110,8 @@ export default function Home() {
         {/* ── Deployer Leaderboard ────────────────────────────────────── */}
         <section className="space-y-6">
           <h2 className="text-2xl font-semibold text-gray-800">Top Deployers</h2>
-          <DeployerLeaderboard />
+          {/* DeployerLeaderboard expects tokens array, pass empty array for now */}
+          <DeployerLeaderboard tokens={[]} isLoading={false} />
         </section>
 
         {/* ── Footer ─────────────────────────────────────────────────── */}
