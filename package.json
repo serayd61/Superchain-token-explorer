@@ -29,7 +29,7 @@
     "deploy": "vercel --prod"
   },
   "dependencies": {
-    "date-fns": "^3.6.0"
+    "date-fns": "^3.6.0",
     "@prisma/client": "^6.13.0",
     "@radix-ui/react-tooltip": "^1.2.7",
     "ethers": "^6.14.3",
