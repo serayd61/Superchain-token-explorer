@@ -19,18 +19,8 @@ type Alert = {
   lastModifiedBy: string;
 };
 
-const SUPPORTED_COINS = [
-  "BTC",
-  "ETH",
-  "OP",
-  "ENA",
-  "HDX",
-  "MODE",
-  "HEU",
-  "EXTRA",
-] as const;
-
-const SUPPORTED_CURRENCIES: Currency[] = ["USD", "CHF", "EUR"];
+const SUPPORTED_COINS = ["BTC","ETH","OP","ENA","HDX","MODE","HEU","EXTRA"] as const;
+const SUPPORTED_CURRENCIES: Currency[] = ["USD","CHF","EUR"];
 const STORAGE_KEY = "price_alerts_v1";
 
 function uid() {
@@ -46,7 +36,6 @@ function validatePositiveNumber(value: string): number | null {
   if (Number.isFinite(num) && num > 0) return num;
   return null;
 }
-// allow digits + single dot, trim spaces, comma->dot
 function sanitizePriceInput(raw: string): string {
   const trimmed = raw.replace(/\s+/g, "").replace(/,/g, ".");
   const only = trimmed.replace(/[^0-9.]/g, "");
@@ -54,7 +43,6 @@ function sanitizePriceInput(raw: string): string {
   if (parts.length <= 1) return only;
   return parts[0] + "." + parts.slice(1).join("").replace(/\./g, "");
 }
-// helper to format now as 'yyyy-MM-dd HH:mm:ss'
 function formatDateTime() {
   return format(new Date(), "yyyy-MM-dd HH:mm:ss");
 }
@@ -70,55 +58,16 @@ export default function PriceAlerts() {
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
-  // new: current date/time + user
+  // current datetime + user
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
-  const [currentUser, setCurrentUser] = useState<string>("");
+  const [currentUser, setCurrentUser] = useState<string>("serayd61");
 
-  // Initialize timer & current user
-  useEffect(() => {
-    setCurrentDateTime(formatDateTime());
-    setCurrentUser("serayd61"); // adapt if you have a real auth/user source
-
-    const timer = setInterval(() => {
-      setCurrentDateTime(formatDateTime());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Load from localStorage (with simple migration for old entries)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<Alert>[];
-        if (Array.isArray(parsed)) {
-          const migrated: Alert[] = parsed.map((a) => {
-            // backfill fields if missing
-            const createdAt =
-              a.createdAt ??
-              // if previously stored as Date string via toISOString
-              new Date().toISOString();
-            const createdBy = a.createdBy ?? "unknown";
-            const lastModifiedAt = a.lastModifiedAt ?? createdAt;
-            const lastModifiedBy = a.lastModifiedBy ?? createdBy;
-
-            return {
-              id: String(a.id ?? uid()),
-              coin: String(a.coin ?? "BTC"),
-              comparator: (a.comparator as Comparator) ?? "above",
-              price: Number(a.price ?? 0),
-              currency: (a.currency as Currency) ?? "CHF",
-              note: a.note,
-              enabled: Boolean(a.enabled ?? true),
-              createdAt: String(createdAt),
-              createdBy: String(createdBy),
-              lastModifiedAt: String(lastModifiedAt),
-              lastModifiedBy: String(lastModifiedBy),
-            };
-          });
-          setAlerts(migrated);
-        }
+        const parsed = JSON.parse(raw) as Alert[];
+        if (Array.isArray(parsed)) setAlerts(parsed);
       }
     } catch (e) {
       console.warn("Failed to parse saved alerts", e);
@@ -127,7 +76,6 @@ export default function PriceAlerts() {
     }
   }, []);
 
-  // Persist
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
@@ -138,6 +86,12 @@ export default function PriceAlerts() {
       console.warn("Failed to persist alerts", e);
     }
   }, [alerts]);
+
+  useEffect(() => {
+    setCurrentDateTime(formatDateTime());
+    const timer = setInterval(() => setCurrentDateTime(formatDateTime()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const totalCount = alerts.length;
   const activeCount = useMemo(
@@ -165,7 +119,6 @@ export default function PriceAlerts() {
       return;
     }
 
-    // duplicate guard (exclude item under edit)
     const duplicate = alerts.some(
       (a) =>
         a.coin === coin &&
@@ -216,7 +169,6 @@ export default function PriceAlerts() {
       lastModifiedAt: now,
       lastModifiedBy: user,
     };
-
     setAlerts((prev) => [newAlert, ...prev]);
     resetForm();
   }
@@ -249,13 +201,13 @@ export default function PriceAlerts() {
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-lg p-6 md:p-8 border border-black/5 dark:border-white/10">
-      {/* Screen-reader live region */}
+      {/* screen-reader live info */}
       <p className="sr-only" aria-live="polite">
         {activeCount} active alerts out of {totalCount} total.
       </p>
 
-      {/* Title bar */}
-      <div className="flex items-center justify-between gap-4 mb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Price Alerts
@@ -274,7 +226,7 @@ export default function PriceAlerts() {
         </div>
       </div>
 
-      {/* New: date/time + user info bar */}
+      {/* Date & User bar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6 p-4 bg-gray-50 dark:bg-white/5 rounded-lg">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -305,27 +257,21 @@ export default function PriceAlerts() {
       >
         {/* Coin */}
         <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-            Coin
-          </label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Coin</label>
           <select
             value={coin}
             onChange={(e) => setCoin(e.target.value)}
             className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {SUPPORTED_COINS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
         </div>
 
         {/* Condition */}
         <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-            Condition
-          </label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Condition</label>
           <select
             value={comparator}
             onChange={(e) => setComparator(e.target.value as Comparator)}
@@ -339,18 +285,14 @@ export default function PriceAlerts() {
 
         {/* Price */}
         <div className="md:col-span-3">
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-            Price
-          </label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Price</label>
           <input
             type="text"
             inputMode="decimal"
             placeholder="0.00"
             value={priceInput}
             onChange={(e) => setPriceInput(sanitizePriceInput(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key === " ") e.preventDefault();
-            }}
+            onKeyDown={(e) => { if (e.key === " ") e.preventDefault(); }}
             aria-invalid={!!error}
             className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -358,27 +300,21 @@ export default function PriceAlerts() {
 
         {/* Currency */}
         <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-            Currency
-          </label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Currency</label>
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value as Currency)}
             className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {SUPPORTED_CURRENCIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
         </div>
 
         {/* Note */}
         <div className="md:col-span-3">
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-            Note (optional)
-          </label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Note (optional)</label>
           <input
             type="text"
             placeholder="e.g., scalp alert"
@@ -418,7 +354,7 @@ export default function PriceAlerts() {
         </div>
       </form>
 
-      {/* Table */}
+      {/* List */}
       <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-white/10">
           <thead className="bg-gray-50 dark:bg-white/5">
@@ -458,12 +394,8 @@ export default function PriceAlerts() {
                   <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-[240px] truncate" title={a.note}>
                     {a.note ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {a.createdAt}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {a.createdBy}
-                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{a.createdAt}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{a.createdBy}</td>
                   <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {a.lastModifiedBy} ({a.lastModifiedAt})
                   </td>
@@ -511,7 +443,7 @@ export default function PriceAlerts() {
         </table>
       </div>
 
-      {/* Footer helper */}
+      {/* Footer note */}
       <p className="mt-4 text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
         These alerts are stored locally in your browser (localStorage). Hook them up to your
         real-time price feed and notification system (e.g., toasts, email, Telegram) as needed.
