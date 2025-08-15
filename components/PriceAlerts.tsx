@@ -1,406 +1,415 @@
-// components/PriceAlerts.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import {
-  Bell, BellRing, Plus, Trash2, Edit3, Check, X,
-  TrendingUp, TrendingDown, AlertTriangle, Clock,
-  Mail, Webhook, Volume2, VolumeX
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 
-interface PriceAlert {
+type Currency = "USD" | "CHF" | "EUR";
+type Comparator = "above" | "below" | "crosses";
+
+type Alert = {
   id: string;
-  tokenAddress: string;
-  tokenSymbol: string;
-  tokenName: string;
-  chain: string;
-  alertType: 'price_above' | 'price_below' | 'price_change' | 'volume_spike' | 'new_listing';
-  targetValue: number;
-  currentValue: number;
-  isActive: boolean;
+  coin: string;
+  comparator: Comparator;
+  price: number;
+  currency: Currency;
+  note?: string;
+  enabled: boolean;
   createdAt: string;
-  triggeredAt?: string;
-  notificationMethods: {
-    browser: boolean;
-    email: boolean;
-    webhook: boolean;
-    sound: boolean;
-  };
-  webhookUrl?: string;
-  email?: string;
+  createdBy: string;
+  lastModifiedAt: string;
+  lastModifiedBy: string;
+};
+
+const SUPPORTED_COINS = ["BTC","ETH","OP","ENA","HDX","MODE","HEU","EXTRA"] as const;
+const SUPPORTED_CURRENCIES: Currency[] = ["USD","CHF","EUR"];
+const STORAGE_KEY = "price_alerts_v1";
+
+function uid() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-interface AlertFormData {
-  tokenAddress: string;
-  tokenSymbol: string;
-  tokenName: string;
-  chain: string;
-  alertType: string;
-  targetValue: string;
-  notificationMethods: {
-    browser: boolean;
-    email: boolean;
-    webhook: boolean;
-    sound: boolean;
-  };
-  webhookUrl: string;
-  email: string;
+function classNames(...c: (string | false | null | undefined)[]) {
+  return c.filter(Boolean).join(" ");
+}
+
+function validatePositiveNumber(value: string): number | null {
+  if (!value) return null;
+  const cleaned = value.replace(/[^0-9.,]/g, "").replace(",", ".");
+  const num = Number(cleaned);
+  if (Number.isFinite(num) && num > 0) return num;
+  return null;
+}
+
+function sanitizePriceInput(raw: string): string {
+  const trimmed = raw.replace(/\s+/g, "").replace(/,/g, ".");
+  const only = trimmed.replace(/[^0-9.]/g, "");
+  const parts = only.split(".");
+  if (parts.length <= 1) return only;
+  return parts[0] + "." + parts.slice(1).join("").replace(/\./g, "");
+}
+
+function formatDateTime() {
+  return format(new Date(), "yyyy-MM-dd HH:mm:ss");
 }
 
 export default function PriceAlerts() {
-  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [formData, setFormData] = useState<AlertFormData>({
-    tokenAddress: '',
-    tokenSymbol: '',
-    tokenName: '',
-    chain: 'base',
-    alertType: 'price_above',
-    targetValue: '',
-    notificationMethods: {
-      browser: true,
-      email: false,
-      webhook: false,
-      sound: true,
-    },
-    webhookUrl: '',
-    email: '',
-  });
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [coin, setCoin] = useState<string>(SUPPORTED_COINS[0]);
+  const [comparator, setComparator] = useState<Comparator>("above");
+  const [priceInput, setPriceInput] = useState<string>("");
+  const [currency, setCurrency] = useState<Currency>("CHF");
+  const [note, setNote] = useState<string>("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  const [currentDateTime, setCurrentDateTime] = useState<string>("");
+  const [currentUser, setCurrentUser] = useState<string>("serayd61");
 
   useEffect(() => {
-    loadAlerts();
-    requestNotificationPermission();
-    const interval = setInterval(checkAlerts, 30000);
-    return () => clearInterval(interval);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Alert[];
+        if (Array.isArray(parsed)) setAlerts(parsed);
+      }
+    } catch (e) {
+      console.warn("Failed to parse saved alerts", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loadAlerts = () => {
-    const saved = localStorage.getItem('price_alerts');
-    if (saved) setAlerts(JSON.parse(saved));
-  };
-
-  const saveAlerts = (newAlerts: PriceAlert[]) => {
-    localStorage.setItem('price_alerts', JSON.stringify(newAlerts));
-    setAlerts(newAlerts);
-  };
-
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
+      window.dispatchEvent(
+        new CustomEvent("price-alerts-changed", { detail: { alerts } })
+      );
+    } catch (e) {
+      console.warn("Failed to persist alerts", e);
     }
-  };
+  }, [alerts]);
 
-  const createAlert = async () => {
-    if (!formData.tokenAddress || !formData.targetValue) return;
-    const currentPrice = Math.random() * 100;
+  useEffect(() => {
+    setCurrentDateTime(formatDateTime());
+    const timer = setInterval(() => setCurrentDateTime(formatDateTime()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    const newAlert: PriceAlert = {
-      id: Date.now().toString(),
-      tokenAddress: formData.tokenAddress,
-      tokenSymbol: formData.tokenSymbol || 'TOKEN',
-      tokenName: formData.tokenName || 'Unknown Token',
-      chain: formData.chain,
-      alertType: formData.alertType as any,
-      targetValue: parseFloat(formData.targetValue),
-      currentValue: currentPrice,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      notificationMethods: formData.notificationMethods,
-      webhookUrl: formData.webhookUrl || undefined,
-      email: formData.email || undefined,
+  const totalCount = alerts.length;
+  const activeCount = useMemo(
+    () => alerts.filter((a) => a.enabled).length,
+    [alerts]
+  );
+
+  function resetForm() {
+    setCoin(SUPPORTED_COINS[0]);
+    setComparator("above");
+    setPriceInput("");
+    setCurrency("CHF");
+    setNote("");
+    setEditingId(null);
+    setError("");
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    const price = validatePositiveNumber(priceInput);
+    if (price === null) {
+      setError("Please enter a valid price greater than 0.");
+      return;
+    }
+
+    const duplicate = alerts.some(
+      (a) =>
+        a.coin === coin &&
+        a.comparator === comparator &&
+        a.currency === currency &&
+        a.price === price &&
+        a.id !== (editingId ?? "__none__")
+    );
+    if (duplicate) {
+      setError("An identical alert already exists.");
+      return;
+    }
+
+    if (editingId) {
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === editingId
+            ? {
+                ...a,
+                coin,
+                comparator,
+                price,
+                currency,
+                note: note || undefined,
+                lastModifiedAt: currentDateTime,
+                lastModifiedBy: currentUser,
+              }
+            : a
+        )
+      );
+      resetForm();
+      return;
+    }
+
+    const now = currentDateTime;
+    const user = currentUser;
+
+    const newAlert: Alert = {
+      id: uid(),
+      coin,
+      comparator,
+      price,
+      currency,
+      note: note || undefined,
+      enabled: true,
+      createdAt: now,
+      createdBy: user,
+      lastModifiedAt: now,
+      lastModifiedBy: user,
     };
-
-    saveAlerts([...alerts, newAlert]);
+    setAlerts((prev) => [newAlert, ...prev]);
     resetForm();
-    setShowCreateForm(false);
-  };
+  }
 
-  const updateAlert = (id: string, updates: Partial<PriceAlert>) => {
-    const updatedAlerts = alerts.map(a => (a.id === id ? { ...a, ...updates } : a));
-    saveAlerts(updatedAlerts);
-  };
+  function onEditStart(a: Alert) {
+    setEditingId(a.id);
+    setCoin(a.coin);
+    setComparator(a.comparator);
+    setPriceInput(String(a.price));
+    setCurrency(a.currency);
+    setNote(a.note ?? "");
+    setError("");
+  }
 
-  const deleteAlert = (id: string) => {
-    saveAlerts(alerts.filter(a => a.id !== id));
-  };
+  function onDelete(id: string) {
+    if (!confirm("Delete this alert? This cannot be undone.")) return;
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+    if (editingId === id) resetForm();
+  }
 
-  const toggleAlert = (id: string) => {
-    const current = alerts.find(a => a.id === id);
-    if (current) updateAlert(id, { isActive: !current.isActive });
-  };
-
-  const checkAlerts = async () => {
-    for (const alert of alerts.filter(a => a.isActive && !a.triggeredAt)) {
-      const newPrice = alert.currentValue * (1 + (Math.random() - 0.5) * 0.1);
-      updateAlert(alert.id, { currentValue: newPrice });
-
-      let shouldTrigger = false;
-      let message = '';
-
-      switch (alert.alertType) {
-        case 'price_above':
-          if (newPrice >= alert.targetValue) {
-            shouldTrigger = true;
-            message = `${alert.tokenSymbol} şu anda $${alert.targetValue.toFixed(6)} değerinin üzerinde! Güncel fiyat: $${newPrice.toFixed(6)}`;
-          }
-          break;
-        case 'price_below':
-          if (newPrice <= alert.targetValue) {
-            shouldTrigger = true;
-            message = `${alert.tokenSymbol} şu anda $${alert.targetValue.toFixed(6)} değerinin altında! Güncel fiyat: $${newPrice.toFixed(6)}`;
-          }
-          break;
-        case 'price_change':
-          const percentChange = Math.abs((newPrice - alert.currentValue) / alert.currentValue) * 100;
-          if (percentChange >= alert.targetValue) {
-            shouldTrigger = true;
-            message = `${alert.tokenSymbol} fiyatı %${percentChange.toFixed(2)} değişti! Güncel fiyat: $${newPrice.toFixed(6)}`;
-          }
-          break;
-      }
-
-      if (shouldTrigger) {
-        await triggerAlert(alert, message);
-      }
-    }
-  };
-
-  const triggerAlert = async (alert: PriceAlert, message: string) => {
-    updateAlert(alert.id, { triggeredAt: new Date().toISOString() });
-
-    if (alert.notificationMethods.browser && Notification.permission === 'granted') {
-      new Notification('Fiyat Uyarısı!', {
-        body: message,
-        icon: '/favicon.ico',
-      });
-    }
-    if (alert.notificationMethods.sound && soundEnabled) {
-      new Audio('/notification-sound.mp3').play().catch(() => {});
-    }
-    if (alert.notificationMethods.webhook && alert.webhookUrl) {
-      try {
-        await fetch(alert.webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            alert_id: alert.id,
-            token: alert.tokenSymbol,
-            message,
-            timestamp: new Date().toISOString(),
-          }),
-        });
-      } catch (err) {
-        console.error('Webhook bildirimi başarısız oldu:', err);
-      }
-    }
-    if (alert.notificationMethods.email && alert.email) {
-      console.log(`E-posta bildirimi ${alert.email} adresine gönderildi: ${message}`);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      tokenAddress: '',
-      tokenSymbol: '',
-      tokenName: '',
-      chain: 'base',
-      alertType: 'price_above',
-      targetValue: '',
-      notificationMethods: {
-        browser: true,
-        email: false,
-        webhook: false,
-        sound: true,
-      },
-      webhookUrl: '',
-      email: '',
-    });
-  };
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    }).format(value);
-
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case 'price_above':
-        return <TrendingUp className="w-4 h-4 text-green-600" />;
-      case 'price_below':
-        return <TrendingDown className="w-4 h-4 text-red-600" />;
-      case 'price_change':
-        return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
-      default:
-        return <Bell className="w-4 h-4 text-blue-600" />;
-    }
-  };
-
-  const getAlertDescription = (alert: PriceAlert) => {
-    switch (alert.alertType) {
-      case 'price_above':
-        return `${formatCurrency(alert.targetValue)} üzerine çıkınca uyar`;
-      case 'price_below':
-        return `${formatCurrency(alert.targetValue)} altına inince uyar`;
-      case 'price_change':
-        return `Fiyat %${alert.targetValue} değişince uyar`;
-      default:
-        return 'Fiyat uyarısı';
-    }
-  };
+  function onToggle(id: string) {
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, enabled: !a.enabled } : a))
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 md:p-8">
+      <div className="flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <BellRing className="w-6 h-6" />
-            Fiyat Uyarıları
+          <h2 className="text-2xl md:text-3xl font-bold text-white">
+            Price Alerts
           </h2>
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-2 rounded-lg transition-colors ${
-              soundEnabled ? 'text-blue-600 bg-blue-100' : 'text-gray-400 bg-gray-100'
-            }`}
-            title={soundEnabled ? 'Sesi kapat' : 'Sesi aç'}
+          <span className="text-xs md:text-sm px-2 py-1 rounded-full bg-indigo-100/20 text-indigo-300">
+            Local only
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-gray-200">
+            Total: <strong className="font-semibold">{totalCount}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100/20 text-emerald-300">
+            Active: <strong className="font-semibold">{activeCount}</strong>
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6 p-4 bg-white/5 rounded-lg">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-300">
+              Current Date and Time:
+            </span>
+            <span className="text-sm text-gray-100 font-mono">
+              {currentDateTime}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-300">
+              Current User Login:
+            </span>
+            <span className="text-sm text-gray-100">
+              {currentUser}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 mb-8">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-gray-300 mb-1">Coin</label>
+          <select
+            value={coin}
+            onChange={(e) => setCoin(e.target.value)}
+            className="w-full rounded-lg border border-white/10 bg-white/10 backdrop-blur-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            {SUPPORTED_COINS.map((c) => (
+              <option key={c} value={c} className="bg-gray-800">{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-gray-300 mb-1">Condition</label>
+          <select
+            value={comparator}
+            onChange={(e) => setComparator(e.target.value as Comparator)}
+            className="w-full rounded-lg border border-white/10 bg-white/10 backdrop-blur-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="above" className="bg-gray-800">Above</option>
+            <option value="below" className="bg-gray-800">Below</option>
+            <option value="crosses" className="bg-gray-800">Crosses</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-3">
+          <label className="block text-xs font-medium text-gray-300 mb-1">Price</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={priceInput}
+            onChange={(e) => setPriceInput(sanitizePriceInput(e.target.value))}
+            className="w-full rounded-lg border border-white/10 bg-white/10 backdrop-blur-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-gray-300 mb-1">Currency</label>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value as Currency)}
+            className="w-full rounded-lg border border-white/10 bg-white/10 backdrop-blur-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {SUPPORTED_CURRENCIES.map((c) => (
+              <option key={c} value={c} className="bg-gray-800">{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="md:col-span-3">
+          <label className="block text-xs font-medium text-gray-300 mb-1">Note (optional)</label>
+          <input
+            type="text"
+            placeholder="e.g., scalp alert"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full rounded-lg border border-white/10 bg-white/10 backdrop-blur-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div className="md:col-span-12 flex items-center gap-3">
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!priceInput}
+          >
+            {editingId ? "Save changes" : "Create alert"}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium border border-white/10 text-gray-100 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+          {error && (
+            <p className="text-sm text-red-400">{error}</p>
+          )}
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Uyarı Oluştur
-        </button>
+      </form>
+
+      <div className="overflow-hidden rounded-xl border border-white/10">
+        <table className="min-w-full">
+          <thead className="bg-white/5">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300">Coin</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300">Condition</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300">Threshold</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300">Note</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300">Status</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/10">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
+                  Loading alerts…
+                </td>
+              </tr>
+            ) : alerts.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
+                  No alerts yet. Create your first one above.
+                </td>
+              </tr>
+            ) : (
+              alerts.map((a) => (
+                <tr key={a.id} className="hover:bg-white/5">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-100">{a.coin}</td>
+                  <td className="px-4 py-3 text-sm text-gray-300 capitalize">{a.comparator}</td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {a.price.toLocaleString(undefined, { maximumFractionDigits: 8 })} {a.currency}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300 max-w-[240px] truncate">
+                    {a.note ?? "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={classNames(
+                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium",
+                        a.enabled
+                          ? "bg-emerald-100/20 text-emerald-300"
+                          : "bg-white/10 text-gray-300"
+                      )}
+                    >
+                      {a.enabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onToggle(a.id)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-white/10 hover:bg-white/5 focus:outline-none"
+                      >
+                        {a.enabled ? "Disable" : "Enable"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEditStart(a)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-indigo-300/50 text-indigo-300 hover:bg-indigo-900/20 focus:outline-none"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(a.id)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-red-300/50 text-red-300 hover:bg-red-900/20 focus:outline-none"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* İstatistik bölümü (kendi kodunuzu buraya ekleyin) */}
-
-      {/* Uyarı listesi */}
-      <div className="space-y-4">
-        {alerts.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-2">Henüz uyarı yok</p>
-            <p className="text-sm">Fiyat hareketlerinden haberdar olmak için ilk uyarınızı oluşturun</p>
-          </div>
-        ) : (
-          alerts.map(alert => (
-            <div
-              key={alert.id}
-              className={`border rounded-lg p-4 transition-all ${
-                alert.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50'
-              } ${alert.triggeredAt ? 'border-green-200 bg-green-50' : ''}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  {/* Uyarı bilgilerinizi burada tutmaya devam edin */}
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => toggleAlert(alert.id)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      alert.isActive
-                        ? 'text-orange-600 hover:bg-orange-100'
-                        : 'text-green-600 hover:bg-green-100'
-                    }`}
-                    title={alert.isActive ? 'Uyarıyı duraklat' : 'Uyarıyı etkinleştir'}
-                  >
-                    {alert.isActive ? <X className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => setEditingAlert(alert)}
-                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"
-                    title="Uyarıyı düzenle"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteAlert(alert.id)}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
-                    title="Uyarıyı sil"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Uyarı Oluşturma Modali */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Uyarı Oluştur</h3>
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                createAlert();
-              }}
-              className="space-y-4"
-            >
-              {/* Form alanlarınızı buraya ekleyin */}
-              <div className="flex gap-2 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetForm();
-                    setShowCreateForm(false);
-                  }}
-                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  Kaydet
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Uyarı Düzenleme Modali */}
-      {editingAlert && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Uyarıyı Düzenle</h3>
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                updateAlert(editingAlert.id, {
-                  ...editingAlert,
-                  targetValue: parseFloat(formData.targetValue || editingAlert.targetValue.toString()),
-                  notificationMethods: formData.notificationMethods,
-                  webhookUrl: formData.webhookUrl || undefined,
-                  email: formData.email || undefined,
-                });
-                setEditingAlert(null);
-                resetForm();
-              }}
-              className="space-y-4"
-            >
-              {/* Form alanlarınızı burada tekrarlayın */}
-              <div className="flex gap-2 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingAlert(null);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                >
-                  İptal
-                </button
-
+      <p className="mt-4 text-xs text-gray-400">
+        These alerts are stored locally in your browser. Hook them up to your real-time price feed and notification system as needed.
+      </p>
+    </div>
+  );
+}
