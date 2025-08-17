@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 export default function IntentTestPage() {
   const [input, setInput] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const testIntent = async () => {
