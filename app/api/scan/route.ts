@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-import { saveTokenDeployment, saveScanHistory } from '@/lib/database';
+import { tokenDAO, scanHistoryDAO } from '@/lib/database';
 
 // Chain configurations with RPC endpoints
 const chainConfigs = {
@@ -243,7 +243,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Save empty scan history
-      await saveScanHistory({
+      await scanHistoryDAO.save({
         chain: chainConfig.name,
         blocks_scanned: 0,
         total_contracts: 0,
@@ -298,7 +298,7 @@ export async function GET(request: NextRequest) {
       const errorMsg = `Failed to connect to ${chainConfig.name} RPC. Please check your RPC URL.`;
       
       // Save error to scan history
-      await saveScanHistory({
+      await scanHistoryDAO.save({
         chain: chainConfig.name,
         blocks_scanned: 0,
         total_contracts: 0,
@@ -364,7 +364,7 @@ export async function GET(request: NextRequest) {
           
           // Save to database
           try {
-            await saveTokenDeployment(result);
+            await tokenDAO.save(result);
             console.log(`✅ Saved to DB: ${metadata.symbol} at ${receipt.contractAddress}`);
           } catch (dbError) {
             console.error('Database save error:', dbError);
@@ -390,7 +390,7 @@ export async function GET(request: NextRequest) {
 
     // Save scan history
     try {
-      await saveScanHistory({
+      await scanHistoryDAO.save({
         chain: chainConfig.name,
         blocks_scanned: blocks,
         total_contracts: results.length,
@@ -424,7 +424,7 @@ export async function GET(request: NextRequest) {
     
     // Save error to scan history
     try {
-      await saveScanHistory({
+      await scanHistoryDAO.save({
         chain: 'unknown',
         blocks_scanned: 0,
         total_contracts: 0,
