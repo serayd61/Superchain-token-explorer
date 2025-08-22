@@ -1,5 +1,8 @@
 'use client';
-
+import AIWidget from './components/AIWidget';
+import AIAgentDashboard from '../components/AIAgentDashboard';
+import OptimismExplorer from '../components/OptimismExplorer';
+import AdvancedTokenScanner from '../components/AdvancedTokenScanner';
 import { useState, useEffect } from 'react';
 
 interface WalletState {
@@ -48,6 +51,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'optimism' | 'scanner'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -318,29 +322,9 @@ export default function ComprehensiveDeFiHomePage() {
     calculateFees();
   }, [bridge.fromNetwork, bridge.toNetwork, bridge.amount]);
 
-  const handleQuickScan = async () => {
-    if (!tokenAddress.trim()) return;
-    
-    setQuickScanResult({
-      address: tokenAddress,
-      name: 'Example Token',
-      symbol: 'EXT',
-      price: '$1.23',
-      change24h: '+5.67%',
-      liquidity: '$890K',
-      holders: '1,234',
-      riskScore: 7.2,
-      recommendations: [
-        'Liquidity pools available on Uniswap V3',
-        'Lending opportunities on Compound',
-        'Staking rewards: 12.5% APY'
-      ]
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
-      {/* Animated Background */}
+      <AIWidget />
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
@@ -355,8 +339,36 @@ export default function ComprehensiveDeFiHomePage() {
           </div>
           <div>
             <h1 className="text-xl font-bold">Superchain Explorer</h1>
-            <p className="text-sm text-gray-400">Natural Language DeFi</p>
+            <p className="text-sm text-gray-400">AI-Powered DeFi Platform</p>
           </div>
+        </div>
+        
+        {/* Navigation */}
+        <div className="hidden md:flex items-center space-x-2">
+          <button
+            onClick={() => setActiveSection('home')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'home' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🏠 Home
+          </button>
+          <button
+            onClick={() => setActiveSection('ai-agent')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'ai-agent' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🤖 AI Agent
+          </button>
+          <button
+            onClick={() => setActiveSection('optimism')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'optimism' ? 'bg-red-600/20 border border-red-500/30 text-red-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🔴 Optimism
+          </button>
+          <button
+            onClick={() => setActiveSection('scanner')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'scanner' ? 'bg-green-600/20 border border-green-500/30 text-green-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🔍 Scanner
+          </button>
         </div>
         
         <div className="flex items-center space-x-4">
@@ -403,199 +415,220 @@ export default function ComprehensiveDeFiHomePage() {
 
       {/* Main Content */}
       <main className="relative z-10 p-6">
-        {/* Hero Section */}
-        <div className={`text-center mb-12 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-          <h1 className="text-6xl md:text-8xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-cyan-400 bg-clip-text text-transparent">
-              Intent Layer
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto">
-            The world's first natural language interface for DeFi with zkCodex-style analytics
-          </p>
-          
-          <div className="flex flex-wrap justify-center gap-3 mb-8">
-            <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full px-4 py-2">
-              <span className="text-sm font-medium">🌍 4 Languages</span>
-            </div>
-            <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 rounded-full px-4 py-2">
-              <span className="text-sm font-medium">📊 Multi-Chain</span>
-            </div>
-            <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-full px-4 py-2">
-              <span className="text-sm font-medium">🎁 Airdrops</span>
-            </div>
-          </div>
+        {/* Mobile Navigation */}
+        <div className="md:hidden mb-6">
+          <select
+            value={activeSection}
+            onChange={(e) => setActiveSection(e.target.value as any)}
+            className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-white"
+          >
+            <option value="home">🏠 Home</option>
+            <option value="ai-agent">🤖 AI Agent</option>
+            <option value="optimism">🔴 Optimism Explorer</option>
+            <option value="scanner">🔍 Token Scanner</option>
+          </select>
         </div>
 
-        {/* Quick Actions */}
-        <div className="max-w-5xl mx-auto mb-12">
-          <h3 className="text-2xl font-bold text-center mb-6">🚀 Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <button
-              onClick={() => wallet.isConnected && analyzeWallet(wallet.address!)}
-              disabled={!wallet.isConnected}
-              className={`p-6 rounded-xl border transition-all ${
-                wallet.isConnected 
-                  ? 'bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30' 
-                  : 'bg-gray-900/20 border-gray-700/30 opacity-50'
-              }`}
-            >
-              <div className="text-3xl mb-2">📊</div>
-              <h4 className="font-semibold mb-1">Analytics</h4>
-              <p className="text-sm text-gray-400">Portfolio analysis</p>
-            </button>
-            
-            <button
-              onClick={() => setShowBridgeModal(true)}
-              className="p-6 rounded-xl border bg-purple-900/20 border-purple-500/30 hover:bg-purple-900/30 transition-all"
-            >
-              <div className="text-3xl mb-2">🌉</div>
-              <h4 className="font-semibold mb-1">Bridge</h4>
-              <p className="text-sm text-gray-400">Cross-chain</p>
-            </button>
-            
-            <button
-              onClick={() => setIntentInput("Find me safe DeFi strategies")}
-              className="p-6 rounded-xl border bg-green-900/20 border-green-500/30 hover:bg-green-900/30 transition-all"
-            >
-              <div className="text-3xl mb-2">🧠</div>
-              <h4 className="font-semibold mb-1">AI Intent</h4>
-              <p className="text-sm text-gray-400">Natural language</p>
-            </button>
-            
-            <button
-              onClick={() => wallet.isConnected && analyzeWallet(wallet.address!)}
-              disabled={!wallet.isConnected}
-              className={`p-6 rounded-xl border transition-all ${
-                wallet.isConnected 
-                  ? 'bg-yellow-900/20 border-yellow-500/30 hover:bg-yellow-900/30' 
-                  : 'bg-gray-900/20 border-gray-700/30 opacity-50'
-              }`}
-            >
-              <div className="text-3xl mb-2">🎁</div>
-              <h4 className="font-semibold mb-1">Airdrops</h4>
-              <p className="text-sm text-gray-400">Opportunities</p>
-            </button>
-          </div>
-        </div>
-
-        {/* AI Intent Input */}
-        <div className="max-w-4xl mx-auto mb-16">
-          <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-2xl p-8">
-            <h3 className="text-2xl font-bold text-center mb-6">🧠 AI Intent Layer</h3>
-            
-            <div className="relative mb-4">
-              <textarea
-                value={intentInput}
-                onChange={(e) => setIntentInput(e.target.value)}
-                onKeyPress={handleIntentKeyPress}
-                placeholder="Try: 'I want to earn 15% on my ETH' or 'bana güvenli DeFi bul'"
-                className="w-full px-4 py-4 bg-gray-900/50 border border-gray-700 rounded-xl focus:border-blue-500 focus:outline-none resize-none h-20"
-              />
-              <button
-                onClick={processIntent}
-                disabled={!intentInput.trim() || isProcessingIntent}
-                className={`absolute bottom-3 right-3 px-4 py-2 rounded-lg transition-all ${
-                  isProcessingIntent || !intentInput.trim()
-                    ? 'bg-gray-600/50 text-gray-400'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
-                }`}
-              >
-                {isProcessingIntent ? 'Processing...' : 'Analyze'}
-              </button>
+        {activeSection === 'home' && (
+          <div>
+            {/* Hero Section */}
+            <div className={`text-center mb-12 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+              <h1 className="text-6xl md:text-8xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-cyan-400 bg-clip-text text-transparent">
+                  Intent Layer
+                </span>
+              </h1>
+              <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto">
+                The world's first natural language interface for DeFi with zkCodex-style analytics
+              </p>
+              
+              <div className="flex flex-wrap justify-center gap-3 mb-8">
+                <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full px-4 py-2">
+                  <span className="text-sm font-medium">🌍 4 Languages</span>
+                </div>
+                <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 rounded-full px-4 py-2">
+                  <span className="text-sm font-medium">📊 Multi-Chain</span>
+                </div>
+                <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-full px-4 py-2">
+                  <span className="text-sm font-medium">🎁 Airdrops</span>
+                </div>
+              </div>
             </div>
 
-            {intentResult && (
-              <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
-                {intentResult.success ? (
-                  <div>
-                    <div className="flex items-center mb-4">
-                      <span className="text-green-400 text-lg">✅</span>
-                      <h4 className="text-lg font-semibold ml-2 text-green-400">Success</h4>
-                    </div>
-                    <p className="text-blue-400">{intentResult.intent?.intentType}</p>
-                    <p className="text-sm text-gray-400 mt-2">{intentResult.intent?.reasoning}</p>
-                  </div>
-                ) : (
-                  <div className="flex items-center text-red-400">
-                    <span className="text-lg">❌</span>
-                    <span className="ml-2">{intentResult.error}</span>
+            {/* Quick Actions */}
+            <div className="max-w-5xl mx-auto mb-12">
+              <h3 className="text-2xl font-bold text-center mb-6">🚀 Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <button
+                  onClick={() => setActiveSection('ai-agent')}
+                  className="p-6 rounded-xl border bg-purple-900/20 border-purple-500/30 hover:bg-purple-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🤖</div>
+                  <h4 className="font-semibold mb-1">AI Agent</h4>
+                  <p className="text-sm text-gray-400">Smart strategies</p>
+                </button>
+                
+                <button
+                  onClick={() => setActiveSection('optimism')}
+                  className="p-6 rounded-xl border bg-red-900/20 border-red-500/30 hover:bg-red-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🔴</div>
+                  <h4 className="font-semibold mb-1">Optimism</h4>
+                  <p className="text-sm text-gray-400">Explore protocols</p>
+                </button>
+                
+                <button
+                  onClick={() => setActiveSection('scanner')}
+                  className="p-6 rounded-xl border bg-green-900/20 border-green-500/30 hover:bg-green-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🔍</div>
+                  <h4 className="font-semibold mb-1">Token Scanner</h4>
+                  <p className="text-sm text-gray-400">Analyze tokens</p>
+                </button>
+                
+                <button
+                  onClick={() => setShowBridgeModal(true)}
+                  className="p-6 rounded-xl border bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🌉</div>
+                  <h4 className="font-semibold mb-1">Bridge</h4>
+                  <p className="text-sm text-gray-400">Cross-chain</p>
+                </button>
+              </div>
+            </div>
+
+            {/* AI Intent Input */}
+            <div className="max-w-4xl mx-auto mb-16">
+              <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-2xl p-8">
+                <h3 className="text-2xl font-bold text-center mb-6">🧠 AI Intent Layer</h3>
+                
+                <div className="relative mb-4">
+                  <textarea
+                    value={intentInput}
+                    onChange={(e) => setIntentInput(e.target.value)}
+                    onKeyPress={handleIntentKeyPress}
+                    placeholder="Try: 'I want to earn 15% on my ETH' or 'bana güvenli DeFi bul'"
+                    className="w-full px-4 py-4 bg-gray-900/50 border border-gray-700 rounded-xl focus:border-blue-500 focus:outline-none resize-none h-20"
+                  />
+                  <button
+                    onClick={processIntent}
+                    disabled={!intentInput.trim() || isProcessingIntent}
+                    className={`absolute bottom-3 right-3 px-4 py-2 rounded-lg transition-all ${
+                      isProcessingIntent || !intentInput.trim()
+                        ? 'bg-gray-600/50 text-gray-400'
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                    }`}
+                  >
+                    {isProcessingIntent ? 'Processing...' : 'Analyze'}
+                  </button>
+                </div>
+
+                {intentResult && (
+                  <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+                    {intentResult.success ? (
+                      <div>
+                        <div className="flex items-center mb-4">
+                          <span className="text-green-400 text-lg">✅</span>
+                          <h4 className="text-lg font-semibold ml-2 text-green-400">Success</h4>
+                        </div>
+                        <p className="text-blue-400">{intentResult.intent?.intentType}</p>
+                        <p className="text-sm text-gray-400 mt-2">{intentResult.intent?.reasoning}</p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-red-400">
+                        <span className="text-lg">❌</span>
+                        <span className="ml-2">{intentResult.error}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Multi-Chain Stats */}
-        <div className="mb-16">
-          <h3 className="text-2xl font-bold text-center mb-8">⛓️ Multi-Chain Statistics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 max-w-6xl mx-auto">
-            {supportedNetworks.map((network, idx) => (
-              <div key={idx} className={`bg-gradient-to-r ${network.color}/20 border border-current/30 rounded-xl p-4 text-center`}>
-                <div className="text-2xl mb-2">
-                  {network.name === 'Ethereum' ? '⟠' :
-                   network.name === 'Base' ? '🔵' :
-                   network.name === 'Optimism' ? '🔴' :
-                   network.name === 'Arbitrum' ? '🔷' :
-                   network.name === 'Polygon' ? '💜' : '💛'}
-                </div>
-                <h4 className="font-semibold text-sm">{network.name}</h4>
-                {isClient && (
-                  <>
-                    <p className="text-xs text-gray-400 mt-1">TVL: ${network.tvl}B</p>
-                    <p className="text-xs text-green-400">APY: {network.apy}%</p>
-                  </>
-                )}
+            {/* CTA */}
+            <div className="text-center">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <button 
+                  onClick={() => setActiveSection('ai-agent')}
+                  className="px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold text-lg"
+                >
+                  🤖 Try AI Agent
+                </button>
+                <button 
+                  onClick={() => setActiveSection('optimism')}
+                  className="px-6 py-4 bg-gradient-to-r from-red-600 to-orange-600 rounded-xl hover:from-red-700 hover:to-orange-700 transition-all font-semibold text-lg"
+                >
+                  🔴 Explore Optimism
+                </button>
+                <button 
+                  onClick={() => setActiveSection('scanner')}
+                  className="px-6 py-4 bg-gradient-to-r from-green-600 to-blue-600 rounded-xl hover:from-green-700 hover:to-blue-700 transition-all font-semibold text-lg"
+                >
+                  🔍 Scan Tokens
+                </button>
+                <button className="px-6 py-4 bg-gradient-to-r from-yellow-600 to-red-600 rounded-xl hover:from-yellow-700 hover:to-red-700 transition-all font-semibold text-lg">
+                  🚀 Start DeFi
+                </button>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Protocol Stats */}
-        <div className="mb-16">
-          <h3 className="text-2xl font-bold text-center mb-8">🔥 Live Protocols</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {protocolData.map((protocol, idx) => (
-              <div key={idx} className="bg-black/20 border border-white/10 rounded-xl p-6 hover:bg-black/30 transition-all">
-                <div className="flex justify-between items-start mb-4">
-                  <h4 className="text-lg font-semibold">{protocol.name}</h4>
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    protocol.risk === 'Low' ? 'bg-green-600/20 text-green-400' : 'bg-yellow-600/20 text-yellow-400'
-                  }`}>
-                    {protocol.risk}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Network</span>
-                    <span className="text-white">{protocol.network}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">APY</span>
-                    <span className="text-green-400 font-bold">{protocol.apy}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">TVL</span>
-                    <span className="text-white">{protocol.tvl}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {/* AI Agent Section */}
+        {activeSection === 'ai-agent' && (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-purple-400 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
+                  AI DeFi Agent
+                </span>
+              </h1>
+              <p className="text-xl text-gray-300 mb-8 max-w-4xl mx-auto">
+                Intelligent strategy optimization, risk analysis, and portfolio management
+              </p>
+            </div>
+            <AIAgentDashboard />
           </div>
-        </div>
+        )}
 
-        {/* CTA */}
-        <div className="text-center">
-          <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all font-semibold text-lg">
-            Start Your DeFi Journey
-          </button>
-        </div>
+        {/* Optimism Explorer Section */}
+        {activeSection === 'optimism' && (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-red-400 via-orange-500 to-yellow-400 bg-clip-text text-transparent">
+                  Optimism Explorer
+                </span>
+              </h1>
+              <p className="text-xl text-gray-300 mb-8 max-w-4xl mx-auto">
+                Discover, analyze, and interact with protocols on the Optimism Superchain
+              </p>
+            </div>
+            <OptimismExplorer />
+          </div>
+        )}
+
+        {/* Token Scanner Section */}
+        {activeSection === 'scanner' && (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-green-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+                  Token Scanner
+                </span>
+              </h1>
+              <p className="text-xl text-gray-300 mb-8 max-w-4xl mx-auto">
+                Advanced AI-powered token analysis with comprehensive risk assessment
+              </p>
+            </div>
+            <AdvancedTokenScanner />
+          </div>
+        )}
       </main>
 
       {/* Footer */}
       <footer className="relative z-10 mt-16 p-6 border-t border-white/10 text-center text-gray-400">
-        <p className="mb-4">Built for RetroPGF • First Natural Language DeFi Interface</p>
+        <p className="mb-4">Built for RetroPGF • AI-Powered DeFi Platform • Superchain Explorer</p>
         
         {/* Social Links */}
         <div className="flex justify-center space-x-6 mb-6">
@@ -642,7 +675,6 @@ export default function ComprehensiveDeFiHomePage() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText('0x7FbD935c9972b6A4c0b6F7c6f650996677bF6e0A');
-                    // Could add a toast notification here
                   }}
                   className="ml-2 text-gray-400 hover:text-white transition-colors"
                   title="Copy address"
@@ -800,122 +832,6 @@ export default function ComprehensiveDeFiHomePage() {
                  !bridge.amount ? 'Enter Amount' :
                  `Bridge ${bridge.amount} ${bridge.asset}`}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Wallet Analytics Dashboard */}
-      {showAnalytics && walletAnalytics && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto">
-          <div className="min-h-screen p-6">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold">📊 Wallet Analytics</h2>
-                <button
-                  onClick={() => setShowAnalytics(false)}
-                  className="text-gray-400 hover:text-white text-2xl"
-                >
-                  ✕
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-gradient-to-r from-blue-900/40 to-blue-700/40 border border-blue-500/50 rounded-xl p-6">
-                  <h3 className="text-blue-300 text-sm font-medium mb-2">Portfolio Value</h3>
-                  <p className="text-2xl font-bold text-white">{walletAnalytics.totalValue}</p>
-                </div>
-                
-                <div className="bg-gradient-to-r from-green-900/40 to-green-700/40 border border-green-500/50 rounded-xl p-6">
-                  <h3 className="text-green-300 text-sm font-medium mb-2">Transactions</h3>
-                  <p className="text-2xl font-bold text-white">{walletAnalytics.transactions.total}</p>
-                  <p className="text-xs text-green-400">+{walletAnalytics.transactions.lastMonth} this month</p>
-                </div>
-                
-                <div className="bg-gradient-to-r from-purple-900/40 to-purple-700/40 border border-purple-500/50 rounded-xl p-6">
-                  <h3 className="text-purple-300 text-sm font-medium mb-2">Risk Score</h3>
-                  <p className="text-2xl font-bold text-white">{walletAnalytics.riskScore}/10</p>
-                </div>
-                
-                <div className="bg-gradient-to-r from-orange-900/40 to-orange-700/40 border border-orange-500/50 rounded-xl p-6">
-                  <h3 className="text-orange-300 text-sm font-medium mb-2">Activity Days</h3>
-                  <p className="text-2xl font-bold text-white">{walletAnalytics.activityDays}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                <div className="bg-black/40 border border-white/20 rounded-xl p-6">
-                  <h3 className="text-xl font-semibold mb-4">💎 Chain Distribution</h3>
-                  <div className="space-y-4">
-                    {walletAnalytics.chains.map((chain: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between">
-                        <span className="font-medium">{chain.name}</span>
-                        <div className="text-right">
-                          <p className="font-medium">{chain.value}</p>
-                          <p className="text-sm text-gray-400">{chain.percentage}%</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="bg-black/40 border border-white/20 rounded-xl p-6">
-                  <h3 className="text-xl font-semibold mb-4">🔄 DeFi Interactions</h3>
-                  <div className="space-y-4">
-                    {walletAnalytics.defiInteractions.map((interaction: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{interaction.protocol}</p>
-                          <p className="text-sm text-gray-400">{interaction.interactions} interactions</p>
-                        </div>
-                        <p className="font-medium text-green-400">{interaction.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              {airdropOpportunities.length > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4">🎁 Airdrop Opportunities</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {airdropOpportunities.map((airdrop, idx) => (
-                      <div key={idx} className="bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border border-yellow-500/50 rounded-xl p-6">
-                        <div className="flex justify-between items-start mb-3">
-                          <h4 className="font-semibold text-lg">{airdrop.project}</h4>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            airdrop.status === 'Eligible' ? 'bg-green-600/30 text-green-400' : 'bg-yellow-600/30 text-yellow-400'
-                          }`}>
-                            {airdrop.status}
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          <div>
-                            <p className="text-sm text-gray-400">Value</p>
-                            <p className="font-medium text-yellow-400">{airdrop.estimatedValue}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Requirements</p>
-                            <p className="text-sm">{airdrop.requirements}</p>
-                          </div>
-                          <div className="pt-2">
-                            <div className="flex justify-between text-sm mb-1">
-                              <span>Probability</span>
-                              <span className="font-medium">{airdrop.probability}%</span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2">
-                              <div 
-                                className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full"
-                                style={{ width: `${airdrop.probability}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superchain AI Agent - Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d1b69 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            background: linear-gradient(45deg, #00d4ff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .widget {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            min-height: 100px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .success { color: #00ff88; }
+        .error { color: #ff4444; }
+        .loading { color: #00d4ff; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Superchain AI Agent</h1>
+        <p style="text-align: center; opacity: 0.8;">Powered by Heurist Network - Live Demo</p>
+
+        <!-- Token Analysis -->
+        <div class="widget">
+            <h3>🔍 Token Analysis</h3>
+            <div class="input-group">
+                <label>Token Address:</label>
+                <input type="text" id="tokenAddress" placeholder="0x... or token symbol" value="0x1234567890123456789012345678901234567890">
+            </div>
+            <div class="input-group">
+                <label>Blockchain:</label>
+                <select id="blockchain">
+                    <option value="ethereum">Ethereum</option>
+                    <option value="solana">Solana</option>
+                    <option value="bsc">BSC</option>
+                    <option value="base">Base</option>
+                </select>
+            </div>
+            <button class="btn" onclick="analyzeToken()">Analyze Token</button>
+            <div class="result-area" id="tokenResults">Ready to analyze tokens...</div>
+        </div>
+
+        <!-- Airdrop Hunter -->
+        <div class="widget">
+            <h3>🎁 Airdrop Hunter</h3>
+            <button class="btn" onclick="huntAirdrops()" style="background: linear-gradient(45deg, #ff00ff, #cc0099);">Hunt Airdrops</button>
+            <div class="result-area" id="airdropResults">Ready to hunt airdrops...</div>
+        </div>
+
+        <!-- Revenue Stats -->
+        <div class="widget">
+            <h3>💰 Revenue Dashboard</h3>
+            <button class="btn" onclick="updateRevenue()" style="background: linear-gradient(45deg, #00ff88, #00cc66);">Refresh Stats</button>
+            <div class="stats" id="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="dailyRevenue">$0.00</div>
+                    <div class="stat-label">Daily Revenue</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalCalls">0</div>
+                    <div class="stat-label">API Calls</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="activeUsers">0</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3003/api';
+
+        async function analyzeToken() {
+            const tokenAddress = document.getElementById('tokenAddress').value;
+            const blockchain = document.getElementById('blockchain').value;
+            const resultsDiv = document.getElementById('tokenResults');
+
+            if (!tokenAddress) {
+                resultsDiv.innerHTML = '<span class="error">Please enter a token address</span>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<span class="loading">🔍 Analyzing token...</span>';
+
+            try {
+                const response = await fetch(`${API_BASE}/analyze-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tokenAddress,
+                        blockchain
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="success">✅ Analysis Complete</div>
+                        <br><strong>Price:</strong> ${result.data.data.price}
+                        <br><strong>Volume 24h:</strong> ${result.data.data.volume24h}
+                        <br><strong>Change 24h:</strong> ${result.data.data.priceChange24h}
+                        <br><strong>Market Cap:</strong> ${result.data.data.marketCap}
+                        <br><strong>Analysis:</strong> ${result.data.data.analysis}
+                        <br><br><strong>💰 Billing:</strong> Cost: $${result.billing.cost} | Profit: $${result.billing.profit}
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<span class="error">❌ Error: ${result.error}</span>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<span class="error">❌ Network Error: ${error.message}</span>`;
+            }
+        }
+
+        async function huntAirdrops() {
+            const resultsDiv = document.getElementById('airdropResults');
+
+            resultsDiv.innerHTML = '<span class="loading">🎁 Hunting airdrops...</span>';
+
+            try {
+                const response = await fetch(`${API_BASE}/hunt-airdrops`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const opportunities = result.data.data.opportunities;
+                    resultsDiv.innerHTML = `
+                        <div class="success">🎁 Airdrop Hunt Complete</div>
+                        <br><strong>New Tokens:</strong> ${result.data.data.newTokens}
+                        <br><strong>Graduated:</strong> ${result.data.data.graduated}
+                        <br><strong>Top Gainer:</strong> ${result.data.data.topGainer}
+                        <br><br><strong>🎯 Opportunities:</strong>
+                        ${opportunities.map(opp => `<br>• ${opp.name} (${opp.potential} potential on ${opp.chain})`).join('')}
+                        <br><br><strong>💰 Billing:</strong> Cost: $${result.billing.cost} | Profit: $${result.billing.profit}
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<span class="error">❌ Error: ${result.error}</span>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<span class="error">❌ Network Error: ${error.message}</span>`;
+            }
+        }
+
+        async function updateRevenue() {
+            try {
+                const response = await fetch(`${API_BASE}/revenue`);
+                const revenue = await response.json();
+
+                document.getElementById('dailyRevenue').textContent = `$${revenue.dailyRevenue}`;
+                document.getElementById('totalCalls').textContent = revenue.totalCalls;
+                document.getElementById('activeUsers').textContent = revenue.activeUsers;
+
+                console.log('📊 Revenue Updated:', revenue);
+            } catch (error) {
+                console.error('Revenue update failed:', error);
+            }
+        }
+
+        // Auto-update revenue on page load
+        window.addEventListener('load', updateRevenue);
+    </script>
+</body>
+</html>
