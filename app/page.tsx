@@ -1,9 +1,10 @@
 'use client';
 import AIWidget from './components/AIWidget';
 import AIAgentDashboard from '../components/AIAgentDashboard';
-import BaseExplorer from '../components/BaseExplorer';
+import L2Explorer from '../components/L2Explorer';
 import AdvancedTokenScanner from '../components/AdvancedTokenScanner';
 import StartDeFiModal from '../components/StartDeFiModal';
+import AIChat from '../components/AIChat';
 import { useState, useEffect } from 'react';
 
 interface WalletState {
@@ -53,7 +54,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'base-explorer' | 'scanner'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -360,10 +361,10 @@ export default function ComprehensiveDeFiHomePage() {
             🤖 AI Agent
           </button>
           <button
-            onClick={() => setActiveSection('base-explorer')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'base-explorer' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'text-gray-400 hover:text-white'}`}
+            onClick={() => setActiveSection('l2-explorer')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'l2-explorer' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
           >
-            🔵 Base Explorer
+            🌐 L2 Explorer
           </button>
           <button
             onClick={() => setActiveSection('scanner')}
@@ -412,12 +413,6 @@ export default function ComprehensiveDeFiHomePage() {
             </button>
           )}
           
-          <button
-            onClick={() => setShowBridgeModal(true)}
-            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg hover:bg-gray-700/50 transition-all"
-          >
-            🌉 Bridge
-          </button>
         </div>
       </header>
 
@@ -432,7 +427,7 @@ export default function ComprehensiveDeFiHomePage() {
           >
             <option value="home">🏠 Home</option>
             <option value="ai-agent">🤖 AI Agent</option>
-            <option value="base-explorer">🔵 Base Explorer</option>
+            <option value="l2-explorer">🌐 L2 Explorer</option>
             <option value="scanner">🔍 Token Scanner</option>
           </select>
         </div>
@@ -477,12 +472,12 @@ export default function ComprehensiveDeFiHomePage() {
                 </button>
                 
                 <button
-                  onClick={() => setActiveSection('base-explorer')}
-                  className="p-6 rounded-xl border bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30 transition-all"
+                  onClick={() => setActiveSection('l2-explorer')}
+                  className="p-6 rounded-xl border bg-purple-900/20 border-purple-500/30 hover:bg-purple-900/30 transition-all"
                 >
-                  <div className="text-3xl mb-2">🔵</div>
-                  <h4 className="font-semibold mb-1">Base Explorer</h4>
-                  <p className="text-sm text-gray-400">DEX & Tokens</p>
+                  <div className="text-3xl mb-2">🌐</div>
+                  <h4 className="font-semibold mb-1">L2 Explorer</h4>
+                  <p className="text-sm text-gray-400">Superchain</p>
                 </button>
                 
                 <button
@@ -507,49 +502,35 @@ export default function ComprehensiveDeFiHomePage() {
 
             {/* AI Intent Input */}
             <div className="max-w-4xl mx-auto mb-16">
-              <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-2xl p-8">
-                <h3 className="text-2xl font-bold text-center mb-6">🧠 AI Intent Layer</h3>
-                
-                <div className="relative mb-4">
-                  <textarea
-                    value={intentInput}
-                    onChange={(e) => setIntentInput(e.target.value)}
-                    onKeyPress={handleIntentKeyPress}
-                    placeholder="Try: 'I want to earn 15% on my ETH' or 'bana güvenli DeFi bul'"
-                    className="w-full px-4 py-4 bg-gray-900/50 border border-gray-700 rounded-xl focus:border-blue-500 focus:outline-none resize-none h-20"
-                  />
+              <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-2xl p-8">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold mb-2">🤖 AI DeFi Assistant</h3>
+                  <p className="text-gray-300">Powered by GitHub Models - Free AI for everyone</p>
                   <button
-                    onClick={processIntent}
-                    disabled={!intentInput.trim() || isProcessingIntent}
-                    className={`absolute bottom-3 right-3 px-4 py-2 rounded-lg transition-all ${
-                      isProcessingIntent || !intentInput.trim()
-                        ? 'bg-gray-600/50 text-gray-400'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
-                    }`}
+                    onClick={() => setActiveSection('ai-chat')}
+                    className="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold"
                   >
-                    {isProcessingIntent ? 'Processing...' : 'Analyze'}
+                    🚀 Launch AI Assistant
                   </button>
                 </div>
-
-                {intentResult && (
-                  <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
-                    {intentResult.success ? (
-                      <div>
-                        <div className="flex items-center mb-4">
-                          <span className="text-green-400 text-lg">✅</span>
-                          <h4 className="text-lg font-semibold ml-2 text-green-400">Success</h4>
-                        </div>
-                        <p className="text-blue-400">{intentResult.intent?.intentType}</p>
-                        <p className="text-sm text-gray-400 mt-2">{intentResult.intent?.reasoning}</p>
-                      </div>
-                    ) : (
-                      <div className="flex items-center text-red-400">
-                        <span className="text-lg">❌</span>
-                        <span className="ml-2">{intentResult.error}</span>
-                      </div>
-                    )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                  <div className="p-4 bg-gray-900/30 rounded-lg">
+                    <div className="text-2xl mb-2">💰</div>
+                    <h4 className="font-semibold">Yield Strategies</h4>
+                    <p className="text-sm text-gray-400">Get personalized DeFi recommendations</p>
                   </div>
-                )}
+                  <div className="p-4 bg-gray-900/30 rounded-lg">
+                    <div className="text-2xl mb-2">🔍</div>
+                    <h4 className="font-semibold">Token Analysis</h4>
+                    <p className="text-sm text-gray-400">AI-powered risk assessment</p>
+                  </div>
+                  <div className="p-4 bg-gray-900/30 rounded-lg">
+                    <div className="text-2xl mb-2">🌉</div>
+                    <h4 className="font-semibold">Bridge Guidance</h4>
+                    <p className="text-sm text-gray-400">Multi-chain route optimization</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -563,10 +544,10 @@ export default function ComprehensiveDeFiHomePage() {
                   🤖 Try AI Agent
                 </button>
                 <button 
-                  onClick={() => setActiveSection('base-explorer')}
-                  className="px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all font-semibold text-lg"
+                  onClick={() => setActiveSection('l2-explorer')}
+                  className="px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold text-lg"
                 >
-                  🔵 Explore Base
+                  🌐 Explore L2s
                 </button>
                 <button 
                   onClick={() => setActiveSection('scanner')}
@@ -602,10 +583,17 @@ export default function ComprehensiveDeFiHomePage() {
           </div>
         )}
 
-        {/* Base Explorer Section */}
-        {activeSection === 'base-explorer' && (
+        {/* L2 Explorer Section */}
+        {activeSection === 'l2-explorer' && (
           <div className="space-y-8">
-            <BaseExplorer />
+            <L2Explorer />
+          </div>
+        )}
+
+        {/* AI Chat Section */}
+        {activeSection === 'ai-chat' && (
+          <div className="space-y-8">
+            <AIChat />
           </div>
         )}
 
