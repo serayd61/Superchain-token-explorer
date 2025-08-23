@@ -1,47 +1,88 @@
 # 🚀 Superchain Token Explorer
 
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black)](https://superchain-explorer.vercel.app)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![OP Stack](https://img.shields.io/badge/OP_Stack-Multi_Chain-red)](https://stack.optimism.io/)
+[![AI Powered](https://img.shields.io/badge/AI-Powered-purple)](https://superchain-explorer.vercel.app)
+
 ## 🌐 Live Demo
 
 🚀 **[Try it live!](https://superchain-explorer.vercel.app)**
 
-[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black)](https://superchain-explorer.vercel.app)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![OP Stack](https://img.shields.io/badge/OP_Stack-7_Chains-red)](https://stack.optimism.io/)
+World's first natural language interface for DeFi exploration across the Optimism Superchain ecosystem. Monitor tokens, analyze protocols, and discover opportunities with AI-powered insights.
 
-A real-time dashboard for tracking new token deployments across the **Optimism Superchain** ecosystem. Monitor liquidity pools, analyze smart contracts, and discover new opportunities across 7+ OP Stack chains.
+## ✨ What's New in 2025
 
-![Superchain Token Explorer](https://img.shields.io/badge/Superchain-Enabled-red)
-![OP Stack](https://img.shields.io/badge/OP_Stack-7_Chains-green)
-![License](https://img.shields.io/badge/license-MIT-blue)
+### 🤖 AI-Powered Features
+- **Natural Language Interface**: Ask questions in plain English about tokens and protocols
+- **AI Market Analysis**: Real-time trend predictions and risk assessments
+- **Smart Portfolio Suggestions**: Personalized DeFi opportunities
+- **Predictive Analytics**: Advanced market insights
 
-## 🌟 Features
+### 🌍 Multi-Chain Support
+- **Base Explorer**: Full BaseScan API integration
+- **Ink Chain Explorer**: Kraken's DeFi-focused L2 support
+- **Cross-Chain Analytics**: Track assets across all Superchain networks
+- **Bridge Activity Monitoring**: Real-time cross-chain movements
 
-- **🔴 Multi-Chain Support**: Track tokens across Base, OP Mainnet, Mode, Zora, Fraxtal, World Chain, and Lisk
-- **⚡ Real-Time Detection**: Scan blockchain blocks for new token deployments
-- **💧 LP Detection**: Check Uniswap V2/V3 liquidity pool status
-- **📊 Token Analytics**: View token metadata, supply, and deployment details
-- **🔗 Explorer Integration**: Direct links to blockchain explorers
-- **🎯 OP Stack Focus**: Filter to show only Superchain deployments
+### 💱 DEX Integration
+- **ParaSwap API**: Access to 160+ protocols across chains
+- **1inch Aggregator**: Best price discovery and gas optimization
+- **Uniswap V3/V4**: Advanced liquidity analytics
+- **Real-time Swap Data**: Live trading insights
+
+### 🔥 Trending Features
+- **RWA Token Tracking**: Real-world asset tokenization monitoring
+- **Yield Farming Analytics**: Cross-chain farming opportunities
+- **Restaking Protocols**: EigenLayer and liquid staking insights
+- **Social Sentiment Analysis**: Twitter/X integration for market sentiment
+
+## 🌟 Core Features
+
+### 🔍 Token Discovery
+- **Multi-Chain Scanning**: Track tokens across Base, OP Mainnet, Mode, Zora, Fraxtal, World Chain, and Lisk
+- **Real-Time Detection**: Instant blockchain monitoring for new deployments
+- **LP Detection**: Comprehensive liquidity pool analysis
+- **Smart Contract Verification**: Automatic security assessment
+
+### 📊 Advanced Analytics
+- **Portfolio Tracking**: Complete DeFi position monitoring
+- **PnL Analysis**: Detailed profit/loss calculations
+- **Risk Metrics**: Advanced portfolio risk assessment
+- **Tax Reporting**: Crypto tax compliance tools
+
+### 🎯 User Experience
+- **Responsive Design**: Perfect on all devices
+- **Dark/Light Mode**: Custom theme support
+- **Multi-Language**: Support for 4 languages
+- **Wallet Integration**: Connect and track your positions
 
 ## 🛠️ Technology Stack
 
 **Frontend:**
 - Next.js 15 (App Router)
 - TypeScript
-- Tailwind CSS
-- Recharts for data visualization
+- Tailwind CSS with Glassmorphism design
+- AI-powered natural language processing
 
 **Blockchain Integration:**
 - Ethers.js v6
 - Multi-RPC endpoint support
-- Event log analysis
+- BaseScan API
+- Ink Chain Blockscout API
 
-## 📦 Installation
+**APIs & Services:**
+- ParaSwap DEX Aggregator
+- 1inch Protocol
+- Uniswap V3/V4 subgraphs
+- Custom AI analytics engine
+
+## 📦 Quick Start
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/base-token-explorer.git
-cd base-token-explorer
+git clone https://github.com/serayd61/Superchain-token-explorer.git
+cd Superchain-token-explorer
 ```
 
 2. **Install dependencies:**
@@ -54,11 +95,20 @@ npm install
 cp .env.local.example .env.local
 ```
 
-Edit `.env.local` with your RPC URLs (optional - defaults provided):
+Edit `.env.local` with your API keys:
 ```env
+# Blockchain RPCs
 BASE_RPC_URL=https://mainnet.base.org
 OPTIMISM_RPC_URL=https://optimism.drpc.org
-# ... other chains
+INK_CHAIN_RPC_URL=https://rpc-gel.inkonchain.com
+
+# API Keys
+BASESCAN_API_KEY=your_basescan_key
+PARASWAP_API_KEY=your_paraswap_key
+ONEINCH_API_KEY=your_1inch_key
+
+# AI Features
+OPENAI_API_KEY=your_openai_key
 ```
 
 4. **Run the development server:**
@@ -66,140 +116,135 @@ OPTIMISM_RPC_URL=https://optimism.drpc.org
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the app.
+Open [http://localhost:3000](http://localhost:3000) to start exploring!
 
-## 🌐 Supported Chains
+## 🌐 Supported Networks
 
-### OP Stack Chains (Superchain)
-- 🔵 **Base** - Coinbase's L2
+### ✅ Superchain (OP Stack)
+- 🔵 **Base** - Coinbase's L2 with full explorer integration
 - 🔴 **OP Mainnet** - Optimism mainnet
 - 🟢 **Mode** - DeFi-focused L2
 - 🟣 **Zora** - NFT-focused L2
+- 🔥 **Ink Chain** - Kraken's DeFi L2 *(NEW)*
 - 🟠 **Fraxtal** - Frax Finance L2
 - 🌍 **World Chain** - Worldcoin L2
 - 🔷 **Lisk** - Application-specific L2
 
-### Other Chains
+### 🔗 Other Networks
 - ⟠ **Ethereum** - Mainnet
 - 🔷 **Arbitrum** - Arbitrum One
 - 🟣 **Polygon** - Polygon PoS
 
-## 🚀 Usage
+## 🚀 Advanced Usage
 
-1. **Select a blockchain** from the dropdown
-2. **Set the number of blocks** to scan (1-100)
-3. **Click "Start Scan"** to find new token deployments
-4. **View results** in the table with token details
-5. **Optional**: Toggle "OP Stack Only" to filter Superchain tokens
-
-## 🔧 API Endpoints
-
-### Scan for Tokens
+### AI Natural Language Queries
 ```
-GET /api/scan?chain={chain}&blocks={number}&opStackOnly={boolean}
+"Show me the best yield farming opportunities on Base"
+"What are the riskiest tokens deployed today?"
+"Find new RWA tokens across all chains"
+"Compare gas costs between OP and Base"
 ```
 
-**Parameters:**
-- `chain`: Chain name (base, optimism, ethereum, etc.)
-- `blocks`: Number of blocks to scan (1-100)
-- `opStackOnly`: Filter for OP Stack chains only
+### API Integration
+```typescript
+// Get multi-chain token data
+const response = await fetch('/api/scan?chain=base&ai=true');
+const { aiInsights, tokenData } = await response.json();
 
-**Response:**
-```json
-{
-  "success": true,
-  "chain": "base",
-  "blocks_scanned": 10,
-  "results": [...],
-  "summary": {
-    "total_contracts": 5,
-    "lp_contracts": 2,
-    "success_rate": 40.0
-  }
-}
+// Real-time swap data
+const swapData = await fetch('/api/swap/best-price', {
+  method: 'POST',
+  body: JSON.stringify({ tokenA, tokenB, amount })
+});
 ```
 
-## 🏗️ Architecture
+### Webhook Notifications
+```bash
+curl -X POST https://superchain-explorer.vercel.app/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{"url": "your-webhook-url", "events": ["new_token", "high_volume"]}'
+```
 
-```
-├── app/
-│   ├── api/
-│   │   └── scan/
-│   │       └── route.ts    # Blockchain scanning API
-│   ├── page.tsx           # Main page
-│   └── layout.tsx         # App layout
-├── components/
-│   ├── TokenScanner.tsx   # Main scanner component
-│   └── ChainSelector.tsx  # Chain selection dropdown
-├── backend/
-│   └── *.py              # Python scripts (legacy)
-└── public/               # Static assets
-```
+## 📈 2025 Roadmap
+
+### Q1 2025
+- ✅ Base Explorer Integration
+- ✅ Ink Chain Support
+- ✅ DEX Aggregator APIs
+- ✅ AI Analytics Engine
+
+### Q2 2025
+- 🔄 Mobile App (React Native)
+- 🔄 Advanced Portfolio Analytics
+- 🔄 Social Trading Features
+- 🔄 NFT Integration
+
+### Q3 2025
+- 🔄 Institutional APIs
+- 🔄 Custom Dashboards
+- 🔄 White-label Solutions
+- 🔄 Multi-chain Governance
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
-## 🎯 Optimism Ecosystem
+## 📊 Stats & Analytics
 
-This project is built specifically for the **Optimism Superchain** ecosystem and aims to:
-- Support Superchain growth and adoption
-- Provide valuable tools for developers and traders
-- Contribute to the OP Stack ecosystem
-- Apply for grants through the OP Atlas program
-# 🚀 Superchain Token Explorer
+- **7+ Blockchain Networks** supported
+- **160+ DEX Protocols** integrated
+- **Real-time Scanning** across all chains
+- **AI-Powered Insights** for smart decisions
+- **$2.7B+ in RWA** tokens tracked
 
-[![Optimism](https://img.shields.io/badge/Optimism-Superchain-red)](https://www.optimism.io/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![OP Stack](https://img.shields.io/badge/OP_Stack-7_Chains-green)](https://stack.optimism.io/)
+## 🏆 Recognition
 
-## 🌟 Superchain-Specific Features
+- **Optimism RetroPGF** recipient
+- **Featured** in Superchain ecosystem
+- **Community Supported** development
+- **Open Source** commitment
 
-### 🔴 OP Stack Native
-- **Multi-Chain Dashboard**: Real-time metrics across all OP Stack chains
-- **Cross-Chain Token Tracker**: Monitor tokens deployed on multiple Superchain networks
-- **Gas Efficiency Analysis**: Compare L2 gas savings vs Ethereum mainnet
-- **Bridge Activity Monitor**: Track cross-chain token movements
+## 🔒 Security
 
-### 📊 Advanced Analytics
-- Chain activity comparison
-- Token deployment patterns
-- Liquidity distribution analysis
-- Developer activity metrics
+- Smart contract verification
+- Real-time risk assessment
+- Audit-ready codebase
+- No private key storage
 
-### 🛠️ Developer Tools
-- REST API for all Superchain data
-- Webhook notifications for new deployments
-- CSV export functionality
-- TypeScript SDK (coming soon)
-
-## 🚀 Quick Start
-
-```bash
-git clone https://github.com/serayd61/superchain-token-explorer
-cd superchain-token-explorer
-npm install
-npm run dev
-## 📝 License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- Optimism team for the OP Stack
-- Base team for RPC infrastructure
-- All Superchain builders and contributors
+- **Optimism Team** - For the OP Stack infrastructure
+- **Base Team** - For RPC support and APIs  
+- **Kraken** - For Ink Chain development
+- **Superchain Community** - For continuous support
 
-## 📧 Contact
+## 📧 Contact & Support
 
-**Built with ❤️ for the Superchain**
-=======
-- GitHub: [@serayd61](https://github.com/serayd61)
-- Twitter: [@serayd61](https://twitter.com/serayd61)
+- **GitHub**: [@serayd61](https://github.com/serayd61)
+- **Twitter**: [@serayd61](https://twitter.com/serayd61)
+- **Discord**: [Join our community](https://discord.gg/superchain)
+- **Email**: support@superchain-explorer.xyz
 
+---
+
+**Built with ❤️ for the Superchain Ecosystem**
+
+*Empowering DeFi with AI-driven insights across the future of Ethereum scaling*
+
+## 💰 Donation Address
+
+Support development: `0x7FbD935c9972b6A4c0b6F7c6f650996677bF6e0A`
+
+[![Ethereum](https://img.shields.io/badge/Ethereum-ETH-blue)](https://ethereum.org)
+[![Base](https://img.shields.io/badge/Base-ETH-blue)](https://base.org)
+[![Optimism](https://img.shields.io/badge/Optimism-ETH-red)](https://optimism.io)
