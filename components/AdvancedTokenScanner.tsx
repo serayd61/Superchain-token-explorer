@@ -17,7 +17,7 @@ interface ScanRequest {
 export default function AdvancedTokenScanner({ onScanComplete }: AdvancedTokenScannerProps) {
   const [scanRequest, setScanRequest] = useState<ScanRequest>({
     address: '',
-    chain: 'optimism',
+    chain: 'base',
     scanDepth: 'comprehensive',
     includeHolders: true,
     includeTransactions: true,

@@ -3,6 +3,7 @@ import AIWidget from './components/AIWidget';
 import AIAgentDashboard from '../components/AIAgentDashboard';
 import BaseExplorer from '../components/BaseExplorer';
 import AdvancedTokenScanner from '../components/AdvancedTokenScanner';
+import StartDeFiModal from '../components/StartDeFiModal';
 import { useState, useEffect } from 'react';
 
 interface WalletState {
@@ -42,6 +43,7 @@ export default function ComprehensiveDeFiHomePage() {
   });
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showBridgeModal, setShowBridgeModal] = useState(false);
+  const [showStartDeFiModal, setShowStartDeFiModal] = useState(false);
   const [intentInput, setIntentInput] = useState('');
   const [intentResult, setIntentResult] = useState<any>(null);
   const [walletAnalytics, setWalletAnalytics] = useState<any>(null);
@@ -369,6 +371,12 @@ export default function ComprehensiveDeFiHomePage() {
           >
             🔍 Scanner
           </button>
+          <button
+            onClick={() => setShowStartDeFiModal(true)}
+            className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium"
+          >
+            🚀 Start DeFi
+          </button>
         </div>
         
         <div className="flex items-center space-x-4">
@@ -566,7 +574,10 @@ export default function ComprehensiveDeFiHomePage() {
                 >
                   🔍 Scan Tokens
                 </button>
-                <button className="px-6 py-4 bg-gradient-to-r from-yellow-600 to-red-600 rounded-xl hover:from-yellow-700 hover:to-red-700 transition-all font-semibold text-lg">
+                <button 
+                  onClick={() => setShowStartDeFiModal(true)}
+                  className="px-6 py-4 bg-gradient-to-r from-yellow-600 to-red-600 rounded-xl hover:from-yellow-700 hover:to-red-700 transition-all font-semibold text-lg"
+                >
                   🚀 Start DeFi
                 </button>
               </div>
@@ -826,6 +837,12 @@ export default function ComprehensiveDeFiHomePage() {
           </div>
         </div>
       )}
+
+      {/* Start DeFi Modal */}
+      <StartDeFiModal 
+        isOpen={showStartDeFiModal}
+        onClose={() => setShowStartDeFiModal(false)}
+      />
     </div>
   );
 }
