@@ -1,5 +1,12 @@
 {
-  "opRetro": {
-    "projectId": "0x15d5177b8208aff43601f2a78292d6ae37c06872cab7f09889e6f042927$"
+  "opRetroFunding": {
+    "projectId":  "0x15d5177b8208aff43601f2a78292d6ae37c06872cab7f09889e6f0429277c687",
+    "description": "Advanced token security scanner and risk analyzer for Base and Superchain Ecosystems,
+    "team": [
+      {
+        "name": "serkanaydin",
+        "github": "serayd61"
+      }
+    ]
   }
 }
