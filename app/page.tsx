@@ -1,7 +1,7 @@
 'use client';
 import AIWidget from './components/AIWidget';
 import AIAgentDashboard from '../components/AIAgentDashboard';
-import OptimismExplorer from '../components/OptimismExplorer';
+import BaseExplorer from '../components/BaseExplorer';
 import AdvancedTokenScanner from '../components/AdvancedTokenScanner';
 import { useState, useEffect } from 'react';
 
@@ -51,7 +51,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'optimism' | 'scanner'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'base-explorer' | 'scanner'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -358,10 +358,10 @@ export default function ComprehensiveDeFiHomePage() {
             🤖 AI Agent
           </button>
           <button
-            onClick={() => setActiveSection('optimism')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'optimism' ? 'bg-red-600/20 border border-red-500/30 text-red-400' : 'text-gray-400 hover:text-white'}`}
+            onClick={() => setActiveSection('base-explorer')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'base-explorer' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'text-gray-400 hover:text-white'}`}
           >
-            🔴 Optimism
+            🔵 Base Explorer
           </button>
           <button
             onClick={() => setActiveSection('scanner')}
@@ -424,7 +424,7 @@ export default function ComprehensiveDeFiHomePage() {
           >
             <option value="home">🏠 Home</option>
             <option value="ai-agent">🤖 AI Agent</option>
-            <option value="optimism">🔴 Optimism Explorer</option>
+            <option value="base-explorer">🔵 Base Explorer</option>
             <option value="scanner">🔍 Token Scanner</option>
           </select>
         </div>
@@ -469,12 +469,12 @@ export default function ComprehensiveDeFiHomePage() {
                 </button>
                 
                 <button
-                  onClick={() => setActiveSection('optimism')}
-                  className="p-6 rounded-xl border bg-red-900/20 border-red-500/30 hover:bg-red-900/30 transition-all"
+                  onClick={() => setActiveSection('base-explorer')}
+                  className="p-6 rounded-xl border bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30 transition-all"
                 >
-                  <div className="text-3xl mb-2">🔴</div>
-                  <h4 className="font-semibold mb-1">Optimism</h4>
-                  <p className="text-sm text-gray-400">Explore protocols</p>
+                  <div className="text-3xl mb-2">🔵</div>
+                  <h4 className="font-semibold mb-1">Base Explorer</h4>
+                  <p className="text-sm text-gray-400">DEX & Tokens</p>
                 </button>
                 
                 <button
@@ -555,10 +555,10 @@ export default function ComprehensiveDeFiHomePage() {
                   🤖 Try AI Agent
                 </button>
                 <button 
-                  onClick={() => setActiveSection('optimism')}
-                  className="px-6 py-4 bg-gradient-to-r from-red-600 to-orange-600 rounded-xl hover:from-red-700 hover:to-orange-700 transition-all font-semibold text-lg"
+                  onClick={() => setActiveSection('base-explorer')}
+                  className="px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all font-semibold text-lg"
                 >
-                  🔴 Explore Optimism
+                  🔵 Explore Base
                 </button>
                 <button 
                   onClick={() => setActiveSection('scanner')}
@@ -591,20 +591,10 @@ export default function ComprehensiveDeFiHomePage() {
           </div>
         )}
 
-        {/* Optimism Explorer Section */}
-        {activeSection === 'optimism' && (
+        {/* Base Explorer Section */}
+        {activeSection === 'base-explorer' && (
           <div className="space-y-8">
-            <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                <span className="bg-gradient-to-r from-red-400 via-orange-500 to-yellow-400 bg-clip-text text-transparent">
-                  Optimism Explorer
-                </span>
-              </h1>
-              <p className="text-xl text-gray-300 mb-8 max-w-4xl mx-auto">
-                Discover, analyze, and interact with protocols on the Optimism Superchain
-              </p>
-            </div>
-            <OptimismExplorer />
+            <BaseExplorer />
           </div>
         )}
 
