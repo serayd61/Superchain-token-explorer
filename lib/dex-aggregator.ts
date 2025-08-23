@@ -318,7 +318,7 @@ export class DexAggregatorService {
       // Calculate savings compared to worst deal
       if (amounts.length > 1) {
         const worst = amounts.reduce((prev, curr) => curr.amount < prev.amount ? curr : prev);
-        const savings = ((best.amount - worst.amount) * 100n) / worst.amount;
+        const savings = ((best.amount - worst.amount) * BigInt(100)) / worst.amount;
         results.bestDeal.savings = `${savings.toString()}%`;
       }
     }

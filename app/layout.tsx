@@ -31,10 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <ThemeProvider
-          defaultTheme="system"
-          storageKey="superchain-theme"
-        >
+        <ThemeProvider>
           {children}
         </ThemeProvider>
       </body>
