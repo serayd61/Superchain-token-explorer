@@ -6,6 +6,7 @@ import AdvancedTokenScanner from '../components/AdvancedTokenScanner';
 import StartDeFiModal from '../components/StartDeFiModal';
 import AIChat from '../components/AIChat';
 import WalletConnect from '../components/WalletConnect';
+import AirdropInspector from '../components/AirdropInspector';
 import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect } from 'wagmi';
 
@@ -61,7 +62,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -330,6 +331,12 @@ export default function ComprehensiveDeFiHomePage() {
             🔍 Scanner
           </button>
           <button
+            onClick={() => setActiveSection('airdrop-inspector')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'airdrop-inspector' ? 'bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🎁 Airdrops
+          </button>
+          <button
             onClick={() => setShowStartDeFiModal(true)}
             className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium"
           >
@@ -386,6 +393,7 @@ export default function ComprehensiveDeFiHomePage() {
             <option value="ai-agent">🤖 AI Agent</option>
             <option value="l2-explorer">🌐 L2 Explorer</option>
             <option value="scanner">🔍 Token Scanner</option>
+            <option value="airdrop-inspector">🎁 Airdrop Inspector</option>
           </select>
         </div>
 
@@ -444,6 +452,15 @@ export default function ComprehensiveDeFiHomePage() {
                   <div className="text-3xl mb-2">🔍</div>
                   <h4 className="font-semibold mb-1">Token Scanner</h4>
                   <p className="text-sm text-gray-400">Analyze tokens</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveSection('airdrop-inspector')}
+                  className="p-6 rounded-xl border bg-gradient-to-br from-purple-900/20 to-pink-900/20 border-purple-500/30 hover:from-purple-900/30 hover:to-pink-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🎁</div>
+                  <h4 className="font-semibold mb-1">Airdrop Inspector</h4>
+                  <p className="text-sm text-gray-400">Hunt airdrops</p>
                 </button>
                 
                 <button
@@ -568,6 +585,13 @@ export default function ComprehensiveDeFiHomePage() {
               </p>
             </div>
             <AdvancedTokenScanner />
+          </div>
+        )}
+
+        {/* Airdrop Inspector Section */}
+        {activeSection === 'airdrop-inspector' && (
+          <div className="space-y-8">
+            <AirdropInspector />
           </div>
         )}
       </main>
