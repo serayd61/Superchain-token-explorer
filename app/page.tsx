@@ -5,7 +5,9 @@ import L2Explorer from '../components/L2Explorer';
 import AdvancedTokenScanner from '../components/AdvancedTokenScanner';
 import StartDeFiModal from '../components/StartDeFiModal';
 import AIChat from '../components/AIChat';
+import WalletConnect from '../components/WalletConnect';
 import { useState, useEffect } from 'react';
+import { useAccount, useDisconnect } from 'wagmi';
 
 interface WalletState {
   isConnected: boolean;
@@ -28,6 +30,11 @@ export default function ComprehensiveDeFiHomePage() {
   const [currentExample, setCurrentExample] = useState(0);
   const [quickScanResult, setQuickScanResult] = useState<any>(null);
   const [tokenAddress, setTokenAddress] = useState('');
+  
+  // Real wallet connection using wagmi
+  const { address, isConnected, chain } = useAccount();
+  const { disconnect } = useDisconnect();
+  
   const [wallet, setWallet] = useState<WalletState>({
     isConnected: false,
     address: null,
@@ -108,70 +115,28 @@ export default function ComprehensiveDeFiHomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const connectWallet = async (walletType: string) => {
-    try {
-      setShowWalletModal(false);
-      
-      if (typeof window !== 'undefined' && (window as any).ethereum && walletType === 'MetaMask') {
-        try {
-          const accounts = await (window as any).ethereum.request({
-            method: 'eth_requestAccounts',
-          });
-          
-          if (accounts.length > 0) {
-            const chainId = await (window as any).ethereum.request({
-              method: 'eth_chainId',
-            });
-            
-            const balance = await (window as any).ethereum.request({
-              method: 'eth_getBalance',
-              params: [accounts[0], 'latest']
-            });
-            
-            const balanceInEth = (parseInt(balance, 16) / Math.pow(10, 18)).toFixed(3);
-            
-            setWallet({
-              isConnected: true,
-              address: accounts[0],
-              balance: `${balanceInEth} ETH`,
-              network: chainId === '0x1' ? 'Ethereum' : chainId === '0x2105' ? 'Base' : 'Unknown'
-            });
-          }
-        } catch (walletError) {
-          console.warn('MetaMask connection failed, using demo mode:', walletError);
-          setWallet({
-            isConnected: true,
-            address: '0x742d35Cc6634C0532925a3b8D238659B4d8A4ae4',
-            balance: '2.45 ETH',
-            network: 'Base (Demo)'
-          });
-        }
-      } else {
-        const demoAddresses = {
-          'MetaMask': '0x742d35Cc6634C0532925a3b8D238659B4d8A4ae4',
-          'WalletConnect': '0x8ba1f109551bD432803012645Hac136c22C501',
-          'Coinbase Wallet': '0x1234567890123456789012345678901234567890',
-          'Rainbow': '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-          'Trust Wallet': '0x9876543210987654321098765432109876543210',
-          'Phantom': '0xfedcbafedcbafedcbafedcbafedcbafedcbafedcba'
-        };
-        
-        const walletIndex = Object.keys(demoAddresses).indexOf(walletType) + 1;
-        
-        setWallet({
-          isConnected: true,
-          address: demoAddresses[walletType as keyof typeof demoAddresses] || demoAddresses['MetaMask'],
-          balance: `${(2.5 + walletIndex * 0.3).toFixed(3)} ETH`,
-          network: `${walletType} (Demo)`
-        });
-      }
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      alert('Wallet connection failed. Please try again or use demo mode.');
-    }
+  // Sync wagmi state with local wallet state
+  useEffect(() => {
+    setWallet({
+      isConnected,
+      address: address || null,
+      balance: null, // Will be updated by WalletConnect component
+      network: chain?.name || null
+    });
+  }, [isConnected, address, chain]);
+
+  const handleWalletConnect = (address: string, balance: string, network: string) => {
+    setWallet({
+      isConnected: true,
+      address,
+      balance,
+      network
+    });
+    setShowWalletModal(false);
   };
 
-  const disconnectWallet = () => {
+  const handleDisconnect = () => {
+    disconnect();
     setWallet({
       isConnected: false,
       address: null,
@@ -398,7 +363,7 @@ export default function ComprehensiveDeFiHomePage() {
                 <p className="text-xs text-gray-500">{wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}</p>
               </div>
               <button
-                onClick={disconnectWallet}
+                onClick={handleDisconnect}
                 className="px-4 py-2 bg-red-600/20 border border-red-500/30 rounded-lg hover:bg-red-600/30 transition-all"
               >
                 Disconnect
