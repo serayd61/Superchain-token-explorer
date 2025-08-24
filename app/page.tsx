@@ -7,6 +7,10 @@ import StartDeFiModal from '../components/StartDeFiModal';
 import AIChat from '../components/AIChat';
 import WalletConnect from '../components/WalletConnect';
 import AirdropInspector from '../components/AirdropInspector';
+import SuperchainHealthDashboard from '../components/SuperchainHealthDashboard';
+import BridgeStatusTracker from '../components/BridgeStatusTracker';
+import GasComparison from '../components/GasComparison';
+import CrossChainAnalytics from '../components/CrossChainAnalytics';
 import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect } from 'wagmi';
 
@@ -62,7 +66,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'superchain-health' | 'bridge-status' | 'gas-tracker' | 'cross-chain-analytics'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -305,40 +309,58 @@ export default function ComprehensiveDeFiHomePage() {
         </div>
         
         {/* Navigation */}
-        <div className="hidden md:flex items-center space-x-2">
+        <div className="hidden lg:flex items-center space-x-1 flex-wrap">
           <button
             onClick={() => setActiveSection('home')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'home' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'text-gray-400 hover:text-white'}`}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'home' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'text-gray-400 hover:text-white'}`}
           >
             🏠 Home
           </button>
           <button
             onClick={() => setActiveSection('ai-agent')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'ai-agent' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'ai-agent' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
           >
             🤖 AI Agent
           </button>
           <button
             onClick={() => setActiveSection('l2-explorer')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'l2-explorer' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'l2-explorer' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
           >
             🌐 L2 Explorer
           </button>
           <button
             onClick={() => setActiveSection('scanner')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'scanner' ? 'bg-green-600/20 border border-green-500/30 text-green-400' : 'text-gray-400 hover:text-white'}`}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'scanner' ? 'bg-green-600/20 border border-green-500/30 text-green-400' : 'text-gray-400 hover:text-white'}`}
           >
             🔍 Scanner
           </button>
           <button
-            onClick={() => setActiveSection('airdrop-inspector')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'airdrop-inspector' ? 'bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
+            onClick={() => setActiveSection('superchain-health')}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'superchain-health' ? 'bg-indigo-600/20 border border-indigo-500/30 text-indigo-400' : 'text-gray-400 hover:text-white'}`}
           >
-            🎁 Airdrops
+            📊 Analytics
+          </button>
+          <button
+            onClick={() => setActiveSection('bridge-status')}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'bridge-status' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🌉 Bridges
+          </button>
+          <button
+            onClick={() => setActiveSection('gas-tracker')}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'gas-tracker' ? 'bg-orange-600/20 border border-orange-500/30 text-orange-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            ⚡ Gas
+          </button>
+          <button
+            onClick={() => setActiveSection('cross-chain-analytics')}
+            className={`px-3 py-2 rounded-lg transition-all text-sm ${activeSection === 'cross-chain-analytics' ? 'bg-pink-600/20 border border-pink-500/30 text-pink-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🔗 Cross-Chain
           </button>
           <button
             onClick={() => setShowStartDeFiModal(true)}
-            className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium"
+            className="px-3 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium text-sm"
           >
             🚀 Start DeFi
           </button>
@@ -383,7 +405,7 @@ export default function ComprehensiveDeFiHomePage() {
       {/* Main Content */}
       <main className="relative z-10 p-6">
         {/* Mobile Navigation */}
-        <div className="md:hidden mb-6">
+        <div className="lg:hidden mb-6">
           <select
             value={activeSection}
             onChange={(e) => setActiveSection(e.target.value as any)}
@@ -394,6 +416,10 @@ export default function ComprehensiveDeFiHomePage() {
             <option value="l2-explorer">🌐 L2 Explorer</option>
             <option value="scanner">🔍 Token Scanner</option>
             <option value="airdrop-inspector">🎁 Airdrop Inspector</option>
+            <option value="superchain-health">📊 Superchain Analytics</option>
+            <option value="bridge-status">🌉 Bridge Monitor</option>
+            <option value="gas-tracker">⚡ Gas Tracker</option>
+            <option value="cross-chain-analytics">🔗 Cross-Chain Analytics</option>
           </select>
         </div>
 
@@ -592,6 +618,34 @@ export default function ComprehensiveDeFiHomePage() {
         {activeSection === 'airdrop-inspector' && (
           <div className="space-y-8">
             <AirdropInspector />
+          </div>
+        )}
+
+        {/* Superchain Health Section */}
+        {activeSection === 'superchain-health' && (
+          <div className="space-y-8">
+            <SuperchainHealthDashboard />
+          </div>
+        )}
+
+        {/* Bridge Status Section */}
+        {activeSection === 'bridge-status' && (
+          <div className="space-y-8">
+            <BridgeStatusTracker />
+          </div>
+        )}
+
+        {/* Gas Tracker Section */}
+        {activeSection === 'gas-tracker' && (
+          <div className="space-y-8">
+            <GasComparison />
+          </div>
+        )}
+
+        {/* Cross-Chain Analytics Section */}
+        {activeSection === 'cross-chain-analytics' && (
+          <div className="space-y-8">
+            <CrossChainAnalytics />
           </div>
         )}
       </main>

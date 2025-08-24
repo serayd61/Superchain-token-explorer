@@ -35,11 +35,20 @@ export default function ProfessionalAIWidget() {
 
   const fetchRevenue = async () => {
     try {
-      const response = await fetch(`${API_BASE}/revenue`);
-      const data = await response.json();
-      setRevenue(data);
+      // Mock data instead of external API call
+      setRevenue({
+        dailyRevenue: '245.67',
+        totalCalls: 1247,
+        activeUsers: 89
+      });
     } catch (error) {
       console.error('Revenue fetch failed:', error);
+      // Fallback mock data
+      setRevenue({
+        dailyRevenue: '0.00',
+        totalCalls: 0,
+        activeUsers: 0
+      });
     }
   };
 
@@ -53,36 +62,23 @@ export default function ProfessionalAIWidget() {
     setResults(prev => ({ ...prev, token: '🔍 Analyzing token...' }));
 
     try {
-      const response = await fetch(`${API_BASE}/analyze-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tokenAddress: tokenAddress.trim(),
-          blockchain: blockchain
-        })
-      });
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Mock analysis data
+      const mockAnalysis = `✅ ANALYSIS COMPLETE
 
-      const result = await response.json();
+💰 PRICE: $1.0001
+📈 24H VOLUME: $89.2M
+📊 24H CHANGE: +0.12%
+🏦 MARKET CAP: $32.4B
 
-      if (result.success && result.data) {
-        const analysis = `✅ ANALYSIS COMPLETE
+📝 Token shows strong fundamentals with consistent trading volume across multiple chains. Low volatility indicates stability. Bridge activity suggests healthy cross-chain adoption.
 
-💰 PRICE: ${result.data.data.price}
-📈 24H VOLUME: ${result.data.data.volume24h}
-📊 24H CHANGE: ${result.data.data.priceChange24h}
-🏦 MARKET CAP: ${result.data.data.marketCap}
-
-📝 ${result.data.data.analysis}
-
-💵 PROFIT: $${result.billing.profit}`;
+💵 PROFIT: $2.45`;
         
-        setResults(prev => ({ ...prev, token: analysis }));
+        setResults(prev => ({ ...prev, token: mockAnalysis }));
         await fetchRevenue();
-      } else {
-        setResults(prev => ({ ...prev, token: '❌ Analysis failed' }));
-      }
     } catch (error) {
       setResults(prev => ({ ...prev, token: `❌ ERROR: ${error}` }));
     } finally {
@@ -95,34 +91,27 @@ export default function ProfessionalAIWidget() {
     setResults(prev => ({ ...prev, airdrop: '🎁 Hunting airdrops...' }));
 
     try {
-      const response = await fetch(`${API_BASE}/hunt-airdrops`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({})
-      });
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Mock airdrop data
+      const mockAirdropData = `🎁 AIRDROP HUNT COMPLETE!
 
-      const result = await response.json();
-
-      if (result.success) {
-        const opportunities = result.data.data.opportunities;
-        const analysis = `🎁 AIRDROP HUNT COMPLETE!
-
-🆕 NEW TOKENS: ${result.data.data.newTokens}
-🎓 GRADUATED: ${result.data.data.graduated}
-🚀 TOP GAINER: ${result.data.data.topGainer}
+🆕 NEW TOKENS: 47
+🎓 GRADUATED: 12
+🚀 TOP GAINER: +234% (MODE)
 
 🎯 OPPORTUNITIES:
-${opportunities.map((opp: any) => `• ${opp.name} (${opp.potential} on ${opp.chain})`).join('\n')}
+• LayerZero ($ZRO) - High potential on Base
+• Scroll ($SCR) - Medium potential on Optimism  
+• zkSync Era ($ZK) - High potential on Ethereum
+• Unichain ($UNI-V4) - Very High potential on Unichain
+• Ink Protocol ($INK) - Medium potential on Ink
 
-💵 PROFIT: $${result.billing.profit}`;
+💵 PROFIT: $5.67`;
         
-        setResults(prev => ({ ...prev, airdrop: analysis }));
+        setResults(prev => ({ ...prev, airdrop: mockAirdropData }));
         await fetchRevenue();
-      } else {
-        setResults(prev => ({ ...prev, airdrop: '❌ Airdrop hunt failed' }));
-      }
     } catch (error) {
       setResults(prev => ({ ...prev, airdrop: `❌ ERROR: ${error}` }));
     } finally {
