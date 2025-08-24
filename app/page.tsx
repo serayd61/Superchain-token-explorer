@@ -81,14 +81,6 @@ export default function ComprehensiveDeFiHomePage() {
     { name: 'Balancer', network: 'Polygon', apy: '11.4%', tvl: '$1.8B', risk: 'Medium' }
   ];
 
-  const supportedWallets = [
-    { name: 'MetaMask', icon: '🦊', popular: true },
-    { name: 'WalletConnect', icon: '🔗', popular: true },
-    { name: 'Coinbase Wallet', icon: '🏪', popular: true },
-    { name: 'Rainbow', icon: '🌈', popular: false },
-    { name: 'Trust Wallet', icon: '🛡️', popular: false },
-    { name: 'Phantom', icon: '👻', popular: false }
-  ];
 
   const supportedNetworks = [
     { name: 'Ethereum', symbol: 'ETH', color: 'from-blue-400 to-blue-600', tvl: '45.2', apy: '8.3' },
@@ -649,38 +641,12 @@ export default function ComprehensiveDeFiHomePage() {
         </div>
       </footer>
 
-      {/* Wallet Modal */}
-      {showWalletModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-xl p-6 max-w-md w-full border border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold">Connect Wallet</h3>
-              <button
-                onClick={() => setShowWalletModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {supportedWallets.map((wallet, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => connectWallet(wallet.name)}
-                  className="w-full flex items-center space-x-3 p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700 transition-all"
-                >
-                  <span className="text-2xl">{wallet.icon}</span>
-                  <span className="font-medium">{wallet.name}</span>
-                  {wallet.popular && (
-                    <span className="ml-auto px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">Popular</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Wallet Connect Component */}
+      <WalletConnect
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+        onConnect={handleWalletConnect}
+      />
 
       {/* Bridge Modal */}
       {showBridgeModal && (

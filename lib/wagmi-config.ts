@@ -81,8 +81,8 @@ export const wagmiConfig = createConfig({
         themeMode: 'dark',
         themeVariables: {
           '--wcm-z-index': '1000',
-          '--wcm-accent': '#0052ff',
-          '--wcm-background': '#1f2937',
+          '--wcm-accent-color': '#0052ff',
+          '--wcm-background-color': '#1f2937',
         },
       },
       showQrModal: true,
