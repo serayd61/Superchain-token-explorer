@@ -32,7 +32,7 @@ export const metadata: Metadata = {
       "Discover, analyze, and track token deployments across the Optimism Superchain ecosystem with real-time insights and advanced safety analytics.",
     images: [
       {
-        url: "/og-image.svg",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Superchain Token Explorer",
