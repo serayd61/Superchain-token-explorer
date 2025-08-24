@@ -136,8 +136,8 @@ class BridgeMonitorService {
 
   private async getBridgeStatus(bridgeConfig: any): Promise<BridgeStatus> {
     try {
-      const fromProvider = new ethers.JsonRpcProvider(this.CHAIN_RPCS[bridgeConfig.fromChain]);
-      const toProvider = new ethers.JsonRpcProvider(this.CHAIN_RPCS[bridgeConfig.toChain]);
+      const fromProvider = new ethers.JsonRpcProvider(this.CHAIN_RPCS[bridgeConfig.fromChain as keyof typeof this.CHAIN_RPCS]);
+      const toProvider = new ethers.JsonRpcProvider(this.CHAIN_RPCS[bridgeConfig.toChain as keyof typeof this.CHAIN_RPCS]);
       
       // Check if both chains are responsive
       const [fromBlock, toBlock] = await Promise.all([
