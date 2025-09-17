@@ -46,7 +46,19 @@ export default function StartDeFiModal({ isOpen, onClose }: StartDeFiModalProps)
   const [userBalance, setUserBalance] = useState('0.0');
 
   const opportunities: DeFiOpportunity[] = [
-    // Swap Opportunities
+    {
+      protocol: 'Superchain DeFi Dashboard',
+      category: 'yield',
+      apy: '12.5%',
+      tvl: '$12.8B',
+      riskLevel: 'Low',
+      description: 'Your personal DeFi analytics dashboard with live protocol data and advanced insights',
+      minAmount: 'Free',
+      chains: ['Base', 'Optimism', 'Arbitrum', 'Ethereum', 'Polygon'],
+      icon: '📊',
+      action: 'Open Dashboard',
+      features: ['Live Data', 'Multi-Chain', 'Analytics', 'Real-time APY']
+    },    // Swap Opportunities
     {
       protocol: 'Aerodrome',
       category: 'swap',
