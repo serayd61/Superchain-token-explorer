@@ -13,6 +13,13 @@
 
 ## ✨ What's New in 2025
 
+### 🏗️ Base Builder Stats Dashboard (NEW!)
+- **Real-time Rank Tracking**: Monitor your position on the Base Builder leaderboard
+- **Progress Metrics**: GitHub, Onchain, and Mini Apps progress visualization
+- **Estimated Rewards**: Track your potential ETH earnings
+- **Action Items**: Personalized recommendations to improve your rank
+- **Quick Links**: Direct access to leaderboard and Base GitHub
+
 ### 🌐 Complete L2 Ecosystem Support
 - **Base**: Coinbase's L2 with $2.8B TVL - Native USDC, Aerodrome DEX
 - **Optimism**: Original OP Stack with $1.8B TVL - Velodrome, Aave V3
