@@ -26,10 +26,61 @@ interface BridgeState {
   fees: string;
 }
 
+interface ScanResult {
+  success: boolean;
+  chain?: string;
+  summary?: {
+    total_contracts: number;
+    lp_contracts: number;
+  };
+  error?: string;
+}
+
+interface IntentResult {
+  success: boolean;
+  intent?: {
+    intentType: string;
+    parameters: Record<string, unknown>;
+    confidence: number;
+  };
+  error?: string;
+  processingTime?: number;
+}
+
+interface WalletAnalytics {
+  totalValue: string;
+  chains: Array<{
+    name: string;
+    value: string;
+    percentage: number;
+  }>;
+  transactions: {
+    total: number;
+    lastMonth: number;
+    avgGasSpent: string;
+  };
+  defiInteractions: Array<{
+    protocol: string;
+    interactions: number;
+    value: string;
+  }>;
+  riskScore: number;
+  activityDays: number;
+  uniqueContracts: number;
+}
+
+interface AirdropOpportunity {
+  project: string;
+  status: string;
+  estimatedValue: string;
+  requirements: string;
+  probability: number;
+}
+
 export default function ComprehensiveDeFiHomePage() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentExample, setCurrentExample] = useState(0);
-  const [quickScanResult, setQuickScanResult] = useState<any>(null);
+  const [quickScanResult, setQuickScanResult] = useState<ScanResult | null>(null);
   const [tokenAddress, setTokenAddress] = useState('');
   
   // Real wallet connection using wagmi
@@ -54,10 +105,10 @@ export default function ComprehensiveDeFiHomePage() {
   const [showBridgeModal, setShowBridgeModal] = useState(false);
   const [showStartDeFiModal, setShowStartDeFiModal] = useState(false);
   const [intentInput, setIntentInput] = useState('');
-  const [intentResult, setIntentResult] = useState<any>(null);
-  const [walletAnalytics, setWalletAnalytics] = useState<any>(null);
+  const [intentResult, setIntentResult] = useState<IntentResult | null>(null);
+  const [walletAnalytics, setWalletAnalytics] = useState<WalletAnalytics | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [airdropOpportunities, setAirdropOpportunities] = useState<any[]>([]);
+  const [airdropOpportunities, setAirdropOpportunities] = useState<AirdropOpportunity[]>([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
@@ -386,7 +437,7 @@ export default function ComprehensiveDeFiHomePage() {
         <div className="md:hidden mb-6">
           <select
             value={activeSection}
-            onChange={(e) => setActiveSection(e.target.value as any)}
+            onChange={(e) => setActiveSection(e.target.value as 'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector')}
             className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-white"
           >
             <option value="home">🏠 Home</option>

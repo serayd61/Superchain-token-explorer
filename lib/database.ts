@@ -391,7 +391,13 @@ export const clearTokenDeployments = () => database.clearTokenDeployments();
 export const clearScanHistory = () => database.clearScanHistory();
 export const clearDeployerStats = () => database.clearDeployerStats();
 export const exportData = () => database.exportData();
-export const importData = (data: any) => database.importData(data);
+interface ImportData {
+  tokenDeployments?: TokenDeployment[];
+  scanHistory?: ScanHistory[];
+  deployerStats?: DeployerStats[];
+}
+
+export const importData = (data: ImportData) => database.importData(data);
 
 // Database instance for direct access
 export default database;

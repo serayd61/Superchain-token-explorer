@@ -169,10 +169,17 @@ async function checkLiquidity(
   }
 }
 
+interface TokenMetadata {
+  name: string;
+  symbol: string;
+  decimals: number;
+  total_supply: number;
+}
+
 async function getTokenMetadata(
   contractAddress: string,
   provider: ethers.Provider
-): Promise<any> {
+): Promise<TokenMetadata> {
   try {
     const contract = new ethers.Contract(
       contractAddress,
