@@ -330,14 +330,12 @@ export async function GET(request: NextRequest) {
 
     for (let blockNumber = startBlock; blockNumber <= latestBlock; blockNumber++) {
       try {
-        const block = await provider.getBlock(blockNumber, true);
+        const block = await provider.getBlock(blockNumber);
         if (!block || !block.transactions) continue;
 
-        const transactions = block.transactions as string[];
-        
+        const transactions = block.transactions;
+
         for (const txHash of transactions) {
-          if (typeof txHash !== 'string') continue;
-          
           const tx = await provider.getTransaction(txHash);
           if (!tx || tx.to !== null) continue;
           
