@@ -32,7 +32,7 @@ export default function TokensPage() {
   };
 
   const handlePageChange = (newOffset: number) => {
-    setQuery({ ...query, offset: newOffset });
+    setQuery({ ...query, offset: newOffset, limit: query.limit || 20 });
   };
 
   return (
@@ -192,17 +192,17 @@ export default function TokensPage() {
           {tokensData.total > tokensData.limit && (
             <div className="flex justify-center items-center space-x-4 mt-6">
               <Button
-                onClick={() => handlePageChange(Math.max(0, query.offset - query.limit!))}
-                disabled={query.offset === 0}
+                onClick={() => handlePageChange(Math.max(0, (query.offset || 0) - (query.limit || 20)))}
+                disabled={(query.offset || 0) === 0}
                 variant="outline"
               >
                 Previous
               </Button>
               <span className="text-gray-400">
-                Page {Math.floor(query.offset / query.limit!) + 1} of {Math.ceil(tokensData.total / tokensData.limit!)}
+                Page {Math.floor((query.offset || 0) / (query.limit || 20)) + 1} of {Math.ceil(tokensData.total / tokensData.limit)}
               </span>
               <Button
-                onClick={() => handlePageChange(query.offset + query.limit!)}
+                onClick={() => handlePageChange((query.offset || 0) + (query.limit || 20))}
                 disabled={!tokensData.has_more}
                 variant="outline"
               >
