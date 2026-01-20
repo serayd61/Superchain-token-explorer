@@ -77,9 +77,20 @@ Thumbs.db
 *.save
 .env.local.*
 
-# Python files (not used)
-backend/
-*.py
+# Python cache
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Python virtual environments
+env/
+venv/
+.venv/
+ENV/
+
+# Keep backend code but ignore cache
+# backend/ is now tracked
 
 /lib/generated/prisma
