@@ -14,8 +14,9 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 
-export default function TokenDetailPage({ params }: { params: { id: string } }) {
-  const tokenId = parseInt(params.id);
+export default async function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const tokenId = parseInt(id);
   const [priceRange, setPriceRange] = useState<'24h' | '7d' | '30d'>('24h');
 
   const { data: token, isLoading: tokenLoading, error: tokenError } = useToken(tokenId);
