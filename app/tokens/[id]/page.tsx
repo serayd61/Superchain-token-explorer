@@ -3,6 +3,7 @@
 import { useToken, usePriceHistory } from '@/lib/hooks/useTokens';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import {
   LineChart,
   Line,
@@ -14,9 +15,9 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 
-export default async function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const tokenId = parseInt(id);
+export default function TokenDetailPage() {
+  const params = useParams();
+  const tokenId = parseInt(params.id as string);
   const [priceRange, setPriceRange] = useState<'24h' | '7d' | '30d'>('24h');
 
   const { data: token, isLoading: tokenLoading, error: tokenError } = useToken(tokenId);
