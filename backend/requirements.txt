@@ -8,6 +8,7 @@ pydantic-settings==2.5.2
 sqlalchemy==2.0.36
 alembic==1.13.2
 psycopg2-binary==2.9.10
+asyncpg==0.29.0
 
 # Web3 and blockchain
 web3==6.20.0
@@ -23,3 +24,6 @@ python-multipart==0.0.12
 
 # CLI
 click==8.1.7
+
+# CORS
+starlette==0.41.2
