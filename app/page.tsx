@@ -7,6 +7,7 @@ import StartDeFiModal from '../components/StartDeFiModal';
 import AIChat from '../components/AIChat';
 import WalletConnect from '../components/WalletConnect';
 import AirdropInspector from '../components/AirdropInspector';
+import TokenCharts from '../components/TokenCharts';
 import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect } from 'wagmi';
 
@@ -113,7 +114,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -388,6 +389,12 @@ export default function ComprehensiveDeFiHomePage() {
             🎁 Airdrops
           </button>
           <button
+            onClick={() => setActiveSection('token-charts')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'token-charts' ? 'bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 text-green-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            📊 Charts
+          </button>
+          <button
             onClick={() => setShowStartDeFiModal(true)}
             className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium"
           >
@@ -437,7 +444,7 @@ export default function ComprehensiveDeFiHomePage() {
         <div className="md:hidden mb-6">
           <select
             value={activeSection}
-            onChange={(e) => setActiveSection(e.target.value as 'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector')}
+            onChange={(e) => setActiveSection(e.target.value as 'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts')}
             className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-white"
           >
             <option value="home">🏠 Home</option>
@@ -445,6 +452,7 @@ export default function ComprehensiveDeFiHomePage() {
             <option value="l2-explorer">🌐 L2 Explorer</option>
             <option value="scanner">🔍 Token Scanner</option>
             <option value="airdrop-inspector">🎁 Airdrop Inspector</option>
+            <option value="token-charts">📊 Token Charts</option>
           </select>
         </div>
 
@@ -521,6 +529,15 @@ export default function ComprehensiveDeFiHomePage() {
                   <div className="text-3xl mb-2">🌉</div>
                   <h4 className="font-semibold mb-1">Bridge</h4>
                   <p className="text-sm text-gray-400">Cross-chain</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveSection('token-charts')}
+                  className="p-6 rounded-xl border bg-gradient-to-br from-green-900/20 to-blue-900/20 border-green-500/30 hover:from-green-900/30 hover:to-blue-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">📊</div>
+                  <h4 className="font-semibold mb-1">Token Charts</h4>
+                  <p className="text-sm text-gray-400">Live prices</p>
                 </button>
               </div>
             </div>
@@ -643,6 +660,13 @@ export default function ComprehensiveDeFiHomePage() {
         {activeSection === 'airdrop-inspector' && (
           <div className="space-y-8">
             <AirdropInspector />
+          </div>
+        )}
+
+        {/* Token Charts Section */}
+        {activeSection === 'token-charts' && (
+          <div className="space-y-8">
+            <TokenCharts />
           </div>
         )}
       </main>
