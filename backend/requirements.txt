@@ -24,6 +24,3 @@ python-multipart==0.0.12
 
 # CLI
 click==8.1.7
-
-# CORS
-starlette==0.41.2
