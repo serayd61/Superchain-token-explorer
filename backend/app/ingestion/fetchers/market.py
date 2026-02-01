@@ -1,4 +1,4 @@
-"""Market data fetcher using CoinGecko API."""
+"""Market data fetcher using CoinGecko and DexScreener APIs."""
 import httpx
 import asyncio
 from typing import Dict, Optional, Any
@@ -6,16 +6,28 @@ from app.config import settings
 import time
 
 
-class MarketDataFetcher:
-    """Fetcher for market data from CoinGecko."""
+# Chain ID to DexScreener chain mapping
+DEXSCREENER_CHAINS = {
+    8453: "base",
+    10: "optimism",
+    57073: "ink",  # Ink chain
+    34443: "mode",
+    7777777: "zora",
+    1: "ethereum",
+    42161: "arbitrum",
+    137: "polygon",
+}
+
+
+class DexScreenerFetcher:
+    """Fetcher for market data from DexScreener API."""
     
     def __init__(self):
-        """Initialize market data fetcher."""
-        self.base_url = "https://api.coingecko.com/api/v3"
-        self.api_key = settings.coingecko_api_key
+        """Initialize DexScreener fetcher."""
+        self.base_url = "https://api.dexscreener.com/latest"
         self.client = httpx.AsyncClient(timeout=30.0)
         self._last_request_time = 0
-        self._min_request_interval = 1.0  # Rate limiting: 1 request per second for free tier
+        self._min_request_interval = 0.5  # DexScreener allows more requests
     
     async def _rate_limit(self):
         """Apply rate limiting."""
@@ -25,7 +37,83 @@ class MarketDataFetcher:
             await asyncio.sleep(self._min_request_interval - time_since_last)
         self._last_request_time = time.time()
     
-    async def fetch_token_market_data(
+    async def fetch_token_data(
+        self,
+        address: str,
+        chain_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch token data from DexScreener."""
+        chain = DEXSCREENER_CHAINS.get(chain_id)
+        if not chain:
+            return None
+        
+        try:
+            await self._rate_limit()
+            
+            # DexScreener API endpoint for token pairs
+            url = f"{self.base_url}/dex/tokens/{address}"
+            
+            response = await self.client.get(url)
+            
+            if response.status_code != 200:
+                return None
+            
+            data = response.json()
+            pairs = data.get("pairs", [])
+            
+            if not pairs:
+                return None
+            
+            # Filter pairs for the specific chain
+            chain_pairs = [p for p in pairs if p.get("chainId") == chain]
+            
+            if not chain_pairs:
+                # Try without chain filter if no exact match
+                chain_pairs = pairs
+            
+            # Get the pair with highest liquidity
+            best_pair = max(chain_pairs, key=lambda p: float(p.get("liquidity", {}).get("usd", 0) or 0))
+            
+            price_usd = float(best_pair.get("priceUsd", 0) or 0)
+            
+            return {
+                "price_usd": price_usd if price_usd > 0 else None,
+                "market_cap": float(best_pair.get("fdv", 0) or 0) or None,
+                "volume_24h": float(best_pair.get("volume", {}).get("h24", 0) or 0) or None,
+                "price_change_24h": float(best_pair.get("priceChange", {}).get("h24", 0) or 0) or None,
+                "liquidity_usd": float(best_pair.get("liquidity", {}).get("usd", 0) or 0) or None,
+                "dex_id": best_pair.get("dexId"),
+                "pair_address": best_pair.get("pairAddress"),
+            }
+        except Exception as e:
+            print(f"DexScreener error for {address}: {e}")
+            return None
+    
+    async def close(self):
+        """Close the HTTP client."""
+        await self.client.aclose()
+
+
+class CoinGeckoFetcher:
+    """Fetcher for market data from CoinGecko."""
+    
+    def __init__(self):
+        """Initialize CoinGecko fetcher."""
+        self.base_url = "https://api.coingecko.com/api/v3"
+        self.api_key = settings.coingecko_api_key
+        self.client = httpx.AsyncClient(timeout=30.0)
+        self._last_request_time = 0
+        self._min_request_interval = 1.5  # Rate limiting: be conservative with free tier
+    
+    async def _rate_limit(self):
+        """Apply rate limiting."""
+        current_time = time.time()
+        time_since_last = current_time - self._last_request_time
+        if time_since_last < self._min_request_interval:
+            await asyncio.sleep(self._min_request_interval - time_since_last)
+        self._last_request_time = time.time()
+    
+    async def fetch_token_data(
         self,
         address: str,
         platform: str
@@ -45,7 +133,11 @@ class MarketDataFetcher:
             response = await self.client.get(url, headers=headers)
             
             if response.status_code == 404:
-                # Token not found on CoinGecko
+                return None
+            
+            if response.status_code == 429:
+                print("CoinGecko rate limit hit, waiting...")
+                await asyncio.sleep(60)
                 return None
             
             response.raise_for_status()
@@ -60,10 +152,10 @@ class MarketDataFetcher:
                 "price_change_24h": market_data.get("price_change_percentage_24h"),
             }
         except httpx.HTTPError as e:
-            print(f"HTTP error fetching market data for {address}: {e}")
+            print(f"CoinGecko HTTP error for {address}: {e}")
             return None
         except Exception as e:
-            print(f"Error fetching market data for {address}: {e}")
+            print(f"CoinGecko error for {address}: {e}")
             return None
     
     async def close(self):
@@ -71,11 +163,66 @@ class MarketDataFetcher:
         await self.client.aclose()
 
 
+class MarketDataFetcher:
+    """Combined market data fetcher with fallback support."""
+    
+    def __init__(self):
+        """Initialize market data fetcher with multiple sources."""
+        self.dexscreener = DexScreenerFetcher()
+        self.coingecko = CoinGeckoFetcher()
+    
+    async def fetch_token_market_data(
+        self,
+        address: str,
+        platform: str,
+        chain_id: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch market data with fallback.
+        
+        Priority:
+        1. DexScreener (faster, better for new tokens)
+        2. CoinGecko (more established tokens)
+        """
+        # Map platform to chain_id if not provided
+        if chain_id is None:
+            platform_to_chain = {
+                "base": 8453,
+                "optimistic-ethereum": 10,
+                "ethereum": 1,
+                "arbitrum-one": 42161,
+                "polygon-pos": 137,
+            }
+            chain_id = platform_to_chain.get(platform)
+        
+        # Try DexScreener first (faster, no rate limit issues)
+        if chain_id:
+            dex_data = await self.dexscreener.fetch_token_data(address, chain_id)
+            if dex_data and dex_data.get("price_usd"):
+                return dex_data
+        
+        # Fallback to CoinGecko
+        if platform:
+            cg_data = await self.coingecko.fetch_token_data(address, platform)
+            if cg_data and cg_data.get("price_usd"):
+                return cg_data
+        
+        return None
+    
+    async def close(self):
+        """Close all HTTP clients."""
+        await self.dexscreener.close()
+        await self.coingecko.close()
+
+
 # For sync usage (worker script)
-def fetch_token_market_data_sync(address: str, platform: str) -> Optional[Dict[str, Any]]:
+def fetch_token_market_data_sync(
+    address: str,
+    platform: str,
+    chain_id: Optional[int] = None
+) -> Optional[Dict[str, Any]]:
     """Synchronous wrapper for market data fetching."""
     fetcher = MarketDataFetcher()
     try:
-        return asyncio.run(fetcher.fetch_token_market_data(address, platform))
+        return asyncio.run(fetcher.fetch_token_market_data(address, platform, chain_id))
     finally:
         asyncio.run(fetcher.close())

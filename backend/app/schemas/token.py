@@ -25,6 +25,7 @@ class TokenCreate(TokenBase):
 class TokenUpdate(BaseModel):
     """Schema for updating a token."""
     price_usd: Optional[float] = None
+    price_change_24h: Optional[float] = None
     volume_24h: Optional[float] = None
     market_cap: Optional[float] = None
     has_liquidity: Optional[bool] = None
@@ -52,6 +53,7 @@ class TokenResponse(TokenBase):
     chain_id: int
     chain: ChainInfo
     price_usd: Optional[float] = None
+    price_change_24h: Optional[float] = None
     volume_24h: Optional[float] = None
     market_cap: Optional[float] = None
     has_liquidity: bool = False

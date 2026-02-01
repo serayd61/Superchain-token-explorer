@@ -27,6 +27,7 @@ export interface Token {
     chain_id: number;
   };
   price_usd?: number;
+  price_change_24h?: number;
   volume_24h?: number;
   market_cap?: number;
   has_liquidity: boolean;
@@ -81,20 +82,29 @@ class ApiClient {
     options?: RequestInit
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      // Re-throw with more context
+      if (error instanceof Error) {
+        throw new Error(`API request failed: ${error.message}`);
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   // Chains
@@ -140,3 +150,36 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+// Helper function to format price
+export function formatPrice(price?: number): string {
+  if (price === undefined || price === null) return 'N/A';
+  if (price < 0.001) return `$${price.toExponential(2)}`;
+  if (price < 1) return `$${price.toFixed(6)}`;
+  if (price < 1000) return `$${price.toFixed(2)}`;
+  return `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+// Helper function to format large numbers
+export function formatLargeNumber(num?: number): string {
+  if (num === undefined || num === null) return 'N/A';
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
+}
+
+// Helper function to format percentage
+export function formatPercentage(percent?: number): string {
+  if (percent === undefined || percent === null) return 'N/A';
+  const sign = percent >= 0 ? '+' : '';
+  return `${sign}${percent.toFixed(2)}%`;
+}
+
+// Helper function to get price change color
+export function getPriceChangeColor(percent?: number): string {
+  if (percent === undefined || percent === null) return 'text-gray-400';
+  if (percent > 0) return 'text-green-400';
+  if (percent < 0) return 'text-red-400';
+  return 'text-gray-400';
+}

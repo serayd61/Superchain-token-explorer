@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTokens, useChains } from '@/lib/hooks/useTokens';
-import { TokenListQuery } from '@/lib/api';
+import { TokenListQuery, formatPrice, formatLargeNumber, formatPercentage, getPriceChangeColor } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
@@ -16,7 +16,7 @@ export default function TokensPage() {
     offset: 0,
   });
 
-  const { data: tokensData, isLoading, error } = useTokens(query);
+  const { data: tokensData, isLoading, error, dataUpdatedAt } = useTokens(query);
   const { data: chains } = useChains();
 
   const handleChainChange = (chainSlug: string | undefined) => {
@@ -35,11 +35,17 @@ export default function TokensPage() {
     setQuery({ ...query, offset: newOffset, limit: query.limit || 20 });
   };
 
+  // Format last updated time
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : null;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Token Explorer</h1>
         <p className="text-gray-400">Explore tokens across the Superchain ecosystem</p>
+        {lastUpdated && (
+          <p className="text-xs text-gray-500 mt-1">Last updated: {lastUpdated}</p>
+        )}
       </div>
 
       {/* Filters */}
@@ -130,6 +136,7 @@ export default function TokensPage() {
                       <th className="text-left py-3 px-4">Token</th>
                       <th className="text-left py-3 px-4">Chain</th>
                       <th className="text-right py-3 px-4">Price</th>
+                      <th className="text-right py-3 px-4">24h Change</th>
                       <th className="text-right py-3 px-4">24h Volume</th>
                       <th className="text-right py-3 px-4">Market Cap</th>
                       <th className="text-center py-3 px-4">Status</th>
@@ -157,17 +164,25 @@ export default function TokensPage() {
                             {token.chain.slug}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-right">
-                          {token.price_usd ? `$${token.price_usd.toLocaleString(undefined, { maximumFractionDigits: 6 })}` : '-'}
+                        <td className="py-4 px-4 text-right font-mono">
+                          {formatPrice(token.price_usd)}
                         </td>
-                        <td className="py-4 px-4 text-right">
-                          {token.volume_24h ? `$${(token.volume_24h / 1e6).toFixed(2)}M` : '-'}
+                        <td className={`py-4 px-4 text-right font-mono ${getPriceChangeColor(token.price_change_24h)}`}>
+                          {formatPercentage(token.price_change_24h)}
                         </td>
-                        <td className="py-4 px-4 text-right">
-                          {token.market_cap ? `$${(token.market_cap / 1e6).toFixed(2)}M` : '-'}
+                        <td className="py-4 px-4 text-right font-mono">
+                          {formatLargeNumber(token.volume_24h)}
+                        </td>
+                        <td className="py-4 px-4 text-right font-mono">
+                          {formatLargeNumber(token.market_cap)}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className="flex items-center justify-center space-x-2">
+                            {token.has_liquidity && (
+                              <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs">
+                                Liquid
+                              </span>
+                            )}
                             {token.is_verified && (
                               <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
                                 Verified

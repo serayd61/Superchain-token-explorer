@@ -10,13 +10,15 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://superchain:password@localhost:5432/superchain_explorer"
     
     # Chain RPC URLs
-    chain_base_rpc_url: Optional[str] = None
-    chain_optimism_rpc_url: Optional[str] = None
+    chain_base_rpc_url: Optional[str] = "https://mainnet.base.org"
+    chain_optimism_rpc_url: Optional[str] = "https://mainnet.optimism.io"
+    chain_ink_rpc_url: Optional[str] = "https://rpc-gel.inkonchain.com"
     chain_mode_rpc_url: Optional[str] = None
     chain_zora_rpc_url: Optional[str] = None
     
     # External APIs
     coingecko_api_key: Optional[str] = None
+    dexscreener_api_key: Optional[str] = None
     
     # App settings
     app_name: str = "Superchain Token Explorer API"

@@ -43,6 +43,7 @@ class Token(Base):
     
     # Price data (latest snapshot)
     price_usd = Column(Float, nullable=True, index=True)
+    price_change_24h = Column(Float, nullable=True)  # Percentage change
     volume_24h = Column(Float, nullable=True, index=True)
     market_cap = Column(Float, nullable=True)
     
