@@ -34,6 +34,11 @@ class TokenUpdate(BaseModel):
     is_trending: Optional[bool] = None
     safety_score: Optional[int] = None
     risk_level: Optional[str] = None
+    # Interop fields
+    is_superchain_erc20: Optional[bool] = None
+    is_interop_ready: Optional[bool] = None
+    interop_score: Optional[int] = None
+    canonical_address: Optional[str] = None
 
 
 class ChainInfo(BaseModel):
@@ -62,12 +67,31 @@ class TokenResponse(TokenBase):
     is_trending: bool = False
     safety_score: Optional[int] = None
     risk_level: Optional[str] = None
+    # Superchain Interop
+    is_superchain_erc20: bool = False
+    is_interop_ready: bool = False
+    interop_score: Optional[int] = None
+    canonical_address: Optional[str] = None
+    # Timestamps
     created_at_on_chain: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     
     class Config:
         from_attributes = True
+
+
+class InteropTokenResponse(BaseModel):
+    """Response for interop token check."""
+    address: str
+    chain: str
+    is_superchain_erc20: bool
+    is_interop_ready: bool
+    interop_score: int
+    has_crosschain_mint: bool = False
+    has_crosschain_burn: bool = False
+    canonical_address: Optional[str] = None
+    cross_chain_addresses: Optional[dict] = None
 
 
 class TokenListQuery(BaseModel):

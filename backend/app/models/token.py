@@ -65,6 +65,14 @@ class Token(Base):
     holder_count = Column(Integer, nullable=True)
     top_holders_percent = Column(Float, nullable=True)
     
+    # Superchain Interop
+    is_superchain_erc20 = Column(Boolean, default=False, nullable=False, index=True)
+    is_interop_ready = Column(Boolean, default=False, nullable=False, index=True)
+    interop_score = Column(Integer, nullable=True)  # 0-100
+    canonical_address = Column(String, nullable=True)  # Original token address on L1
+    bridge_address = Column(String, nullable=True)
+    remote_token_address = Column(String, nullable=True)
+    
     # Tracking
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

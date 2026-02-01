@@ -8,6 +8,7 @@ import AIChat from '../components/AIChat';
 import WalletConnect from '../components/WalletConnect';
 import AirdropInspector from '../components/AirdropInspector';
 import TokenCharts from '../components/TokenCharts';
+import SuperchainDashboard from '../components/SuperchainDashboard';
 import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect } from 'wagmi';
 
@@ -114,7 +115,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts' | 'superchain'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -395,6 +396,12 @@ export default function ComprehensiveDeFiHomePage() {
             📊 Charts
           </button>
           <button
+            onClick={() => setActiveSection('superchain')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'superchain' ? 'bg-gradient-to-r from-red-600/20 to-purple-600/20 border border-red-500/30 text-red-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            ⛓️ Superchain
+          </button>
+          <button
             onClick={() => setShowStartDeFiModal(true)}
             className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium"
           >
@@ -444,7 +451,7 @@ export default function ComprehensiveDeFiHomePage() {
         <div className="md:hidden mb-6">
           <select
             value={activeSection}
-            onChange={(e) => setActiveSection(e.target.value as 'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts')}
+            onChange={(e) => setActiveSection(e.target.value as 'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts' | 'superchain')}
             className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-white"
           >
             <option value="home">🏠 Home</option>
@@ -453,6 +460,7 @@ export default function ComprehensiveDeFiHomePage() {
             <option value="scanner">🔍 Token Scanner</option>
             <option value="airdrop-inspector">🎁 Airdrop Inspector</option>
             <option value="token-charts">📊 Token Charts</option>
+            <option value="superchain">⛓️ Superchain</option>
           </select>
         </div>
 
@@ -667,6 +675,13 @@ export default function ComprehensiveDeFiHomePage() {
         {activeSection === 'token-charts' && (
           <div className="space-y-8">
             <TokenCharts />
+          </div>
+        )}
+
+        {/* Superchain Analytics Section */}
+        {activeSection === 'superchain' && (
+          <div className="space-y-8">
+            <SuperchainDashboard />
           </div>
         )}
       </main>

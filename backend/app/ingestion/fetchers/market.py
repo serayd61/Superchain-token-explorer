@@ -6,13 +6,32 @@ from app.config import settings
 import time
 
 
-# Chain ID to DexScreener chain mapping
+# Chain ID to DexScreener chain mapping (19 Superchain networks)
 DEXSCREENER_CHAINS = {
+    # Primary Superchain
     8453: "base",
     10: "optimism",
-    57073: "ink",  # Ink chain
+    # Tier 2
+    130: "unichain",
+    480: "worldchain",
+    57073: "ink",
+    1868: "soneium",
     34443: "mode",
+    # Tier 3
     7777777: "zora",
+    1135: "lisk",
+    60808: "bob",
+    1923: "swell",
+    185: "mint",
+    360: "shape",
+    # Tier 4
+    1750: "metal",
+    8008: "polynomial",
+    5330: "superseed",
+    6805: "race",
+    7897: "arena-z",
+    183: "epic",
+    # Non-Superchain (for reference)
     1: "ethereum",
     42161: "arbitrum",
     137: "polygon",
