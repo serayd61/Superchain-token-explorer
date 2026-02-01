@@ -1,18 +1,8 @@
 """TokenGroup model for grouping same tokens across different chains."""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
-
-# Association table for many-to-many relationship
-token_group_members = Table(
-    "token_group_members",
-    Base.metadata,
-    Column("id", Integer, primary_key=True),
-    Column("group_id", Integer, ForeignKey("token_groups.id", ondelete="CASCADE"), nullable=False),
-    Column("token_id", Integer, ForeignKey("tokens.id", ondelete="CASCADE"), nullable=False),
-    UniqueConstraint("group_id", "token_id", name="uq_group_token"),
-)
 
 
 class TokenGroup(Base):
@@ -45,6 +35,11 @@ class TokenGroupMember(Base):
     # Relationships
     group = relationship("TokenGroup", back_populates="members")
     token = relationship("Token", back_populates="group_members")
+    
+    # Unique constraint
+    __table_args__ = (
+        UniqueConstraint("group_id", "token_id", name="uq_group_token"),
+    )
     
     def __repr__(self):
         return f"<TokenGroupMember(group_id={self.group_id}, token_id={self.token_id})>"
