@@ -1,722 +1,881 @@
 'use client';
+import AIWidget from './components/AIWidget';
+import AIAgentDashboard from '../components/AIAgentDashboard';
+import L2Explorer from '../components/L2Explorer';
+import AdvancedTokenScanner from '../components/AdvancedTokenScanner';
+import StartDeFiModal from '../components/StartDeFiModal';
+import AIChat from '../components/AIChat';
+import WalletConnect from '../components/WalletConnect';
+import AirdropInspector from '../components/AirdropInspector';
+import TokenCharts from '../components/TokenCharts';
+import SuperchainDashboard from '../components/SuperchainDashboard';
+import { useState, useEffect } from 'react';
+import { useAccount, useDisconnect } from 'wagmi';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════════════════════
-
-interface ChainMetric {
-  slug: string;
-  name: string;
-  chain_id: number;
-  token_count: number;
-  total_volume_24h: number;
-  total_tvl: number;
-  is_active: boolean;
-  priority: number;
+interface WalletState {
+  isConnected: boolean;
+  address: string | null;
+  balance: string | null;
+  network: string | null;
 }
 
-interface SuperchainOverview {
-  total_chains: number;
-  active_chains: number;
-  total_tokens: number;
-  total_volume_24h: number;
-  total_tvl: number;
-  interop_ready_tokens: number;
-  chains: ChainMetric[];
-  last_updated: string;
+interface BridgeState {
+  fromNetwork: string;
+  toNetwork: string;
+  asset: string;
+  amount: string;
+  estimatedTime: string;
+  fees: string;
 }
 
-interface NavItem {
-  id: string;
-  label: string;
-  href?: string;
-  action?: string;
-  icon: React.ReactNode;
-  status?: 'online' | 'warning' | 'beta';
-  badge?: string | number;
+interface ScanResult {
+  success: boolean;
+  chain?: string;
+  summary?: {
+    total_contracts: number;
+    lp_contracts: number;
+  };
+  error?: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CONSTANTS
-// ═══════════════════════════════════════════════════════════════════════════
+interface IntentResult {
+  success: boolean;
+  intent?: {
+    intentType: string;
+    parameters: Record<string, unknown>;
+    confidence: number;
+  };
+  error?: string;
+  processingTime?: number;
+}
 
-const CHAIN_COLORS: Record<string, string> = {
-  base: '#0052ff',
-  optimism: '#ff0420',
-  unichain: '#ff007a',
-  world: '#00d4aa',
-  ink: '#9945ff',
-  soneium: '#ffffff',
-  mode: '#dffe00',
-  zora: '#5b5bd6',
-  lisk: '#0d47a1',
-  bob: '#f7931a',
-  swell: '#00a3ff',
-  mint: '#00ff88',
-  shape: '#ff6b6b',
-  metal: '#c0c0c0',
-  polynomial: '#7b61ff',
-  superseed: '#00ff00',
-  race: '#ff4500',
-  arena_z: '#ffd700',
-  epic: '#8b5cf6',
-};
+interface WalletAnalytics {
+  totalValue: string;
+  chains: Array<{
+    name: string;
+    value: string;
+    percentage: number;
+  }>;
+  transactions: {
+    total: number;
+    lastMonth: number;
+    avgGasSpent: string;
+  };
+  defiInteractions: Array<{
+    protocol: string;
+    interactions: number;
+    value: string;
+  }>;
+  riskScore: number;
+  activityDays: number;
+  uniqueContracts: number;
+}
 
-const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'DASHBOARD', href: '/', icon: <GridIcon />, status: 'online' },
-  { id: 'tokens', label: 'TOKEN EXPLORER', href: '/tokens', icon: <ScanIcon />, status: 'online' },
-  { id: 'chains', label: 'CHAIN METRICS', action: 'chains', icon: <ChainIcon />, status: 'online' },
-  { id: 'analytics', label: 'ANALYTICS', action: 'analytics', icon: <ChartIcon />, status: 'online' },
-  { id: 'interop', label: 'INTEROP TRACKER', action: 'interop', icon: <BridgeIcon />, status: 'beta', badge: 'BETA' },
-  { id: 'docs', label: 'API DOCS', href: '/docs', icon: <CodeIcon /> },
-];
+interface AirdropOpportunity {
+  project: string;
+  status: string;
+  estimatedValue: string;
+  requirements: string;
+  probability: number;
+}
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
+export default function ComprehensiveDeFiHomePage() {
+  const [isVisible, setIsVisible] = useState(false);
+  const [currentExample, setCurrentExample] = useState(0);
+  const [quickScanResult, setQuickScanResult] = useState<ScanResult | null>(null);
+  const [tokenAddress, setTokenAddress] = useState('');
+  
+  // Real wallet connection using wagmi
+  const { address, isConnected, chain } = useAccount();
+  const { disconnect } = useDisconnect();
+  
+  const [wallet, setWallet] = useState<WalletState>({
+    isConnected: false,
+    address: null,
+    balance: null,
+    network: null
+  });
+  const [bridge, setBridge] = useState<BridgeState>({
+    fromNetwork: 'Ethereum',
+    toNetwork: 'Base',
+    asset: 'ETH',
+    amount: '',
+    estimatedTime: '2-3 minutes',
+    fees: '$5.20'
+  });
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showBridgeModal, setShowBridgeModal] = useState(false);
+  const [showStartDeFiModal, setShowStartDeFiModal] = useState(false);
+  const [intentInput, setIntentInput] = useState('');
+  const [intentResult, setIntentResult] = useState<IntentResult | null>(null);
+  const [walletAnalytics, setWalletAnalytics] = useState<WalletAnalytics | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [airdropOpportunities, setAirdropOpportunities] = useState<AirdropOpportunity[]>([]);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [isProcessingIntent, setIsProcessingIntent] = useState(false);
+  const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
+  const [isClient, setIsClient] = useState(false);
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts' | 'superchain'>('home');
 
-export default function SuperchainTerminal() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<string>('dashboard');
-  const [currentTime, setCurrentTime] = useState<string>('');
-  const [mounted, setMounted] = useState(false);
+  const examples = [
+    { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
+    { input: "Safest way to earn on USDC", output: "Conservative lending on Aave: 4.8% APY" },
+    { input: "Find arbitrage opportunities", output: "ETH price gap: 0.3% profit available" },
+    { input: "Best yield farming for $50k", output: "Optimized portfolio: 18.7% projected APY" },
+    { input: "bana en güvenli DeFi projelerini bul", output: "🇹🇷 Güvenli stratejiler: Compound, Aave" },
+    { input: "trouve-moi les meilleurs projets DeFi", output: "🇫🇷 Projets recommandés: Uniswap V3 pools" }
+  ];
 
-  // Time update
+  const protocolData = [
+    { name: 'Aerodrome', network: 'Base', apy: '12.5%', tvl: '$2.8B', risk: 'Low' },
+    { name: 'Compound V3', network: 'Base', apy: '8.2%', tvl: '$1.4B', risk: 'Low' },
+    { name: 'Uniswap V3', network: 'Optimism', apy: '15.7%', tvl: '$3.1B', risk: 'Medium' },
+    { name: 'Aave V3', network: 'Arbitrum', apy: '6.8%', tvl: '$4.2B', risk: 'Low' },
+    { name: 'Curve Finance', network: 'Ethereum', apy: '9.3%', tvl: '$2.9B', risk: 'Low' },
+    { name: 'Balancer', network: 'Polygon', apy: '11.4%', tvl: '$1.8B', risk: 'Medium' }
+  ];
+
+
+  const supportedNetworks = [
+    { name: 'Ethereum', symbol: 'ETH', color: 'from-blue-400 to-blue-600', tvl: '45.2', apy: '8.3' },
+    { name: 'Base', symbol: 'BASE', color: 'from-blue-500 to-blue-700', tvl: '12.8', apy: '12.5' },
+    { name: 'Optimism', symbol: 'OP', color: 'from-red-400 to-red-600', tvl: '8.4', apy: '9.7' },
+    { name: 'Arbitrum', symbol: 'ARB', color: 'from-blue-400 to-cyan-500', tvl: '15.6', apy: '11.2' },
+    { name: 'Polygon', symbol: 'MATIC', color: 'from-purple-400 to-purple-600', tvl: '6.3', apy: '14.8' },
+    { name: 'BSC', symbol: 'BNB', color: 'from-yellow-400 to-yellow-600', tvl: '9.1', apy: '13.4' }
+  ];
+
+  const supportedAssets = [
+    { symbol: 'ETH', name: 'Ethereum', icon: '⟠' },
+    { symbol: 'USDC', name: 'USD Coin', icon: '💵' },
+    { symbol: 'USDT', name: 'Tether', icon: '💰' },
+    { symbol: 'WBTC', name: 'Wrapped Bitcoin', icon: '₿' }
+  ];
+
   useEffect(() => {
-    setMounted(true);
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC');
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
+    setIsVisible(true);
+    setIsClient(true);
+    const interval = setInterval(() => {
+      setCurrentExample((prev) => (prev + 1) % examples.length);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch superchain overview
-  const { data: overview, isLoading, error } = useQuery<SuperchainOverview>({
-    queryKey: ['superchain-overview'],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/superchain/overview`);
-      if (!res.ok) throw new Error('Failed to fetch');
-      return res.json();
-    },
-    refetchInterval: 30000,
-    retry: 3,
-  });
+  // Sync wagmi state with local wallet state
+  useEffect(() => {
+    setWallet({
+      isConnected,
+      address: address || null,
+      balance: null, // Will be updated by WalletConnect component
+      network: chain?.name || null
+    });
+  }, [isConnected, address, chain]);
 
-  const toggleSidebar = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
-  }, []);
-
-  const closeSidebar = useCallback(() => {
-    setIsSidebarOpen(false);
-  }, []);
-
-  const handleNavClick = (item: NavItem) => {
-    if (item.action) {
-      setActiveSection(item.action);
-    }
-    closeSidebar();
+  const handleWalletConnect = (address: string, balance: string, network: string) => {
+    setWallet({
+      isConnected: true,
+      address,
+      balance,
+      network
+    });
+    setShowWalletModal(false);
   };
 
-  // Close sidebar on escape
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isSidebarOpen) {
-        closeSidebar();
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isSidebarOpen, closeSidebar]);
+  const handleDisconnect = () => {
+    disconnect();
+    setWallet({
+      isConnected: false,
+      address: null,
+      balance: null,
+      network: null
+    });
+    setWalletAnalytics(null);
+    setShowAnalytics(false);
+    setAirdropOpportunities([]);
+  };
 
-  if (!mounted) return null;
+  const processIntent = async () => {
+    if (!intentInput.trim()) return;
+    
+    setIsProcessingIntent(true);
+    try {
+      const response = await fetch('/api/intent/parse', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userInput: intentInput,
+          advanced: true
+        }),
+      });
+      
+      const data = await response.json();
+      setIntentResult(data);
+    } catch (error) {
+      console.error('Intent processing failed:', error);
+      setIntentResult({
+        success: false,
+        error: 'Failed to process intent. Please try again.'
+      });
+    }
+    setIsProcessingIntent(false);
+  };
+
+  const handleIntentKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      processIntent();
+    }
+  };
+
+  const analyzeWallet = async (address: string) => {
+    setIsAnalyzing(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const mockAnalytics = {
+        totalValue: '$45,230.50',
+        chains: [
+          { name: 'Ethereum', value: '$25,400.00', percentage: 56 },
+          { name: 'Base', value: '$12,800.00', percentage: 28 },
+          { name: 'Arbitrum', value: '$4,600.00', percentage: 10 },
+          { name: 'Optimism', value: '$2,430.50', percentage: 6 }
+        ],
+        transactions: {
+          total: 1847,
+          lastMonth: 23,
+          avgGasSpent: '$12.40'
+        },
+        defiInteractions: [
+          { protocol: 'Uniswap V3', interactions: 45, value: '$8,200' },
+          { protocol: 'Aave', interactions: 12, value: '$15,400' },
+          { protocol: 'Compound', interactions: 8, value: '$3,800' }
+        ],
+        riskScore: 7.2,
+        activityDays: 89,
+        uniqueContracts: 34
+      };
+      
+      setWalletAnalytics(mockAnalytics);
+      setShowAnalytics(true);
+      
+      const mockAirdrops = [
+        { 
+          project: 'LayerZero', 
+          status: 'Eligible', 
+          estimatedValue: '$1,200-$3,500',
+          requirements: 'Bridge transactions detected',
+          probability: 85 
+        },
+        { 
+          project: 'zkSync Era', 
+          status: 'Potential', 
+          estimatedValue: '$500-$1,500',
+          requirements: 'More volume needed',
+          probability: 45 
+        },
+        { 
+          project: 'StarkNet', 
+          status: 'Eligible', 
+          estimatedValue: '$800-$2,000',
+          requirements: 'Multiple transactions found',
+          probability: 75 
+        }
+      ];
+      
+      setAirdropOpportunities(mockAirdrops);
+      
+    } catch (error) {
+      console.error('Wallet analysis failed:', error);
+    }
+    setIsAnalyzing(false);
+  };
+
+  useEffect(() => {
+    if (wallet.isConnected && wallet.address && !walletAnalytics) {
+      analyzeWallet(wallet.address);
+    }
+  }, [wallet.isConnected, wallet.address]);
+
+  const bridgeAssets = async () => {
+    try {
+      setBridgeStatus('bridging');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      setBridgeStatus('success');
+      setShowBridgeModal(false);
+      setTimeout(() => {
+        setBridgeStatus('idle');
+      }, 3000);
+    } catch (error) {
+      setBridgeStatus('error');
+      console.error('Bridge failed:', error);
+    }
+  };
+
+  useEffect(() => {
+    const calculateFees = () => {
+      const baseNetwork = bridge.fromNetwork.toLowerCase();
+      const amount = parseFloat(bridge.amount) || 0;
+      
+      let baseFee = 5.20;
+      if (baseNetwork === 'ethereum') baseFee = 12.50;
+      if (baseNetwork === 'polygon') baseFee = 0.50;
+      if (baseNetwork === 'base') baseFee = 2.20;
+      
+      const dynamicFee = amount * 0.001;
+      const totalFee = baseFee + dynamicFee;
+      
+      setBridge(prev => ({
+        ...prev,
+        fees: `$${totalFee.toFixed(2)}`,
+        estimatedTime: baseNetwork === 'ethereum' ? '15-20 minutes' : '2-3 minutes'
+      }));
+    };
+    
+    calculateFees();
+  }, [bridge.fromNetwork, bridge.toNetwork, bridge.amount]);
 
   return (
-    <div className="min-h-screen bg-[#0a0c0f] text-[#e8eaed] font-mono">
-      {/* ═══════════════════════════════════════════════════════════════════
-          SIDEBAR OVERLAY
-      ═══════════════════════════════════════════════════════════════════ */}
-      <div 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 ${
-          isSidebarOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
-        }`}
-        onClick={closeSidebar}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
+      <AIWidget />
+      <div className="absolute inset-0">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-pulse delay-2000"></div>
+      </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SIDEBAR
-      ═══════════════════════════════════════════════════════════════════ */}
-      <aside 
-        className={`fixed top-0 left-0 w-72 h-full bg-[#12151a] border-r border-[#2a3040] z-50 transform transition-transform duration-300 ease-out ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-[#2a3040]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#ff0420] to-[#0052ff] flex items-center justify-center">
-                <span className="text-white font-bold text-sm">SC</span>
-              </div>
-              <div>
-                <div className="text-[10px] text-[#5f6368] uppercase tracking-widest">Superchain</div>
-                <div className="text-sm font-semibold">Terminal v2.0</div>
-              </div>
-            </div>
-            <button 
-              onClick={closeSidebar}
-              className="w-8 h-8 flex items-center justify-center text-[#5f6368] hover:text-white hover:bg-[#1a1e25] transition-colors"
-            >
-              <CloseIcon />
-            </button>
+      {/* Header */}
+      <header className="relative z-10 p-6 flex justify-between items-center border-b border-white/10 backdrop-blur-sm">
+        <div className="flex items-center space-x-4">
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <span className="text-lg font-bold">S</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Superchain Explorer</h1>
+            <p className="text-sm text-gray-400">AI-Powered DeFi Platform</p>
           </div>
         </div>
-
-        {/* System Status */}
-        <div className="px-4 py-3 border-b border-[#2a3040] bg-[#1a1e25]">
-          <div className="flex items-center gap-2 text-[10px]">
-            <span className="w-2 h-2 rounded-full bg-[#00d26a] shadow-[0_0_10px_rgba(0,210,106,0.5)]" />
-            <span className="text-[#00d26a] uppercase tracking-wider">System Operational</span>
-            <span className="text-[#3c4043] ml-auto">19 CHAINS</span>
-          </div>
-        </div>
-
+        
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-2">
-          <ul className="space-y-1 px-2">
-            {NAV_ITEMS.map((item, index) => {
-              const isActive = activeSection === item.id || (item.id === 'dashboard' && activeSection === 'dashboard');
-              
-              return (
-                <li key={item.id}>
-                  {item.href ? (
-                    <Link
-                      href={item.href}
-                      onClick={() => handleNavClick(item)}
-                      className={`flex items-center gap-3 px-3 py-3 text-xs tracking-wide transition-all relative group ${
-                        isActive 
-                          ? 'bg-[#1a1e25] text-white border-l-2 border-[#00d26a]' 
-                          : 'text-[#9aa0a6] hover:bg-[#1a1e25] hover:text-white border-l-2 border-transparent'
-                      }`}
-                    >
-                      <span className={`w-5 h-5 flex items-center justify-center ${isActive ? 'text-[#00d26a]' : 'text-[#5f6368] group-hover:text-[#9aa0a6]'}`}>
-                        {item.icon}
-                      </span>
-                      <span className="flex-1">{item.label}</span>
-                      {item.status === 'online' && <span className="w-2 h-2 rounded-full bg-[#00d26a]" />}
-                      {item.status === 'beta' && <span className="px-1.5 py-0.5 text-[9px] bg-[#2a3040] text-[#5f6368]">BETA</span>}
-                      {typeof item.badge === 'number' && (
-                        <span className="px-1.5 py-0.5 text-[9px] bg-[#ff4444] text-white">{item.badge}</span>
-                      )}
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={() => handleNavClick(item)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 text-xs tracking-wide transition-all relative group ${
-                        isActive 
-                          ? 'bg-[#1a1e25] text-white border-l-2 border-[#00d26a]' 
-                          : 'text-[#9aa0a6] hover:bg-[#1a1e25] hover:text-white border-l-2 border-transparent'
-                      }`}
-                    >
-                      <span className={`w-5 h-5 flex items-center justify-center ${isActive ? 'text-[#00d26a]' : 'text-[#5f6368] group-hover:text-[#9aa0a6]'}`}>
-                        {item.icon}
-                      </span>
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {item.status === 'online' && <span className="w-2 h-2 rounded-full bg-[#00d26a]" />}
-                      {item.status === 'beta' && <span className="px-1.5 py-0.5 text-[9px] bg-[#2a3040] text-[#5f6368]">BETA</span>}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-[#2a3040] bg-[#1a1e25]">
-          <div className="text-[10px] text-[#3c4043] space-y-1">
-            <div className="flex justify-between">
-              <span>LAST SYNC</span>
-              <span className="text-[#5f6368]">{overview?.last_updated ? 'Just now' : '--'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>API STATUS</span>
-              <span className="text-[#00d26a]">{error ? 'ERROR' : 'HEALTHY'}</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          HEADER
-      ═══════════════════════════════════════════════════════════════════ */}
-      <header className="h-14 bg-[#12151a] border-b border-[#2a3040] flex items-center justify-between px-4 sticky top-0 z-30">
-        {/* Left: Hamburger + Logo */}
-        <div className="flex items-center gap-4">
-          {/* Hamburger Button */}
+        <div className="hidden md:flex items-center space-x-2">
           <button
-            onClick={toggleSidebar}
-            className="w-10 h-10 flex flex-col justify-center items-center gap-1.5 border border-[#2a3040] hover:border-[#00d26a] hover:bg-[rgba(0,210,106,0.05)] transition-all group"
-            aria-label="Open menu"
+            onClick={() => setActiveSection('home')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'home' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'text-gray-400 hover:text-white'}`}
           >
-            <span className={`block w-5 h-0.5 bg-[#9aa0a6] group-hover:bg-[#00d26a] transition-all ${isSidebarOpen ? 'rotate-45 translate-y-2' : ''}`} />
-            <span className={`block w-5 h-0.5 bg-[#9aa0a6] group-hover:bg-[#00d26a] transition-all ${isSidebarOpen ? 'opacity-0' : ''}`} />
-            <span className={`block w-5 h-0.5 bg-[#9aa0a6] group-hover:bg-[#00d26a] transition-all ${isSidebarOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            🏠 Home
           </button>
-
-          {/* Logo */}
-          <div className="hidden sm:flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#ff0420] to-[#0052ff] flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">SC</span>
-            </div>
-            <div>
-              <span className="text-sm font-semibold tracking-tight">SUPERCHAIN TERMINAL</span>
-              <span className="text-[10px] text-[#3c4043] ml-2">v2.0</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Center: Status Indicators */}
-        <div className="hidden md:flex items-center gap-6 text-[10px] uppercase tracking-wider">
-          <StatusIndicator label="API" status={error ? 'offline' : 'online'} />
-          <StatusIndicator label="RPC" status="online" />
-          <StatusIndicator label="DATA" status="online" />
-          <div className="h-4 w-px bg-[#2a3040]" />
-          <div className="flex items-center gap-2 text-[#5f6368]">
-            <span>CHAINS</span>
-            <span className="text-[#00d26a] font-mono">{overview?.active_chains || 19}</span>
-          </div>
-          <div className="flex items-center gap-2 text-[#5f6368]">
-            <span>TOKENS</span>
-            <span className="text-white font-mono">{overview?.total_tokens?.toLocaleString() || '--'}</span>
-          </div>
-        </div>
-
-        {/* Right: Time + Actions */}
-        <div className="flex items-center gap-4">
-          <div className="hidden lg:block text-right">
-            <div className="text-[10px] text-[#3c4043] uppercase tracking-wider">SYSTEM TIME</div>
-            <div className="text-xs font-mono text-[#9aa0a6]">{currentTime}</div>
-          </div>
-          <Link 
-            href="/tokens"
-            className="px-4 py-2 bg-gradient-to-r from-[#ff0420] to-[#0052ff] text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+          <button
+            onClick={() => setActiveSection('ai-agent')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'ai-agent' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
           >
-            EXPLORE TOKENS
-          </Link>
+            🤖 AI Agent
+          </button>
+          <button
+            onClick={() => setActiveSection('l2-explorer')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'l2-explorer' ? 'bg-purple-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🌐 L2 Explorer
+          </button>
+          <button
+            onClick={() => setActiveSection('scanner')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'scanner' ? 'bg-green-600/20 border border-green-500/30 text-green-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🔍 Scanner
+          </button>
+          <button
+            onClick={() => setActiveSection('airdrop-inspector')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'airdrop-inspector' ? 'bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 text-purple-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            🎁 Airdrops
+          </button>
+          <button
+            onClick={() => setActiveSection('token-charts')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'token-charts' ? 'bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 text-green-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            📊 Charts
+          </button>
+          <button
+            onClick={() => setActiveSection('superchain')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'superchain' ? 'bg-gradient-to-r from-red-600/20 to-purple-600/20 border border-red-500/30 text-red-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            ⛓️ Superchain
+          </button>
+          <button
+            onClick={() => setShowStartDeFiModal(true)}
+            className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium"
+          >
+            🚀 Start DeFi
+          </button>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          {wallet.isConnected ? (
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowAnalytics(!showAnalytics)}
+                className="px-4 py-2 bg-blue-600/20 border border-blue-500/30 rounded-lg hover:bg-blue-600/30 transition-all flex items-center space-x-2"
+              >
+                <span>📊</span>
+                <span>Analytics</span>
+                {isAnalyzing && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
+                )}
+              </button>
+              <div className="text-right">
+                <p className="text-sm text-gray-300">{wallet.balance}</p>
+                <p className="text-xs text-gray-500">{wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}</p>
+              </div>
+              <button
+                onClick={handleDisconnect}
+                className="px-4 py-2 bg-red-600/20 border border-red-500/30 rounded-lg hover:bg-red-600/30 transition-all"
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowWalletModal(true)}
+              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-medium"
+            >
+              Connect Wallet
+            </button>
+          )}
+          
         </div>
       </header>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          MAIN CONTENT
-      ═══════════════════════════════════════════════════════════════════ */}
-      <main className="p-4 md:p-6">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              {activeSection === 'dashboard' && 'DASHBOARD'}
-              {activeSection === 'chains' && 'CHAIN METRICS'}
-              {activeSection === 'analytics' && 'ANALYTICS'}
-              {activeSection === 'interop' && 'INTEROP TRACKER'}
-            </h1>
-            <p className="text-xs text-[#5f6368] mt-1 uppercase tracking-wider">
-              Real-time Superchain ecosystem overview • 19 Networks
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="w-2 h-2 rounded-full bg-[#00d26a] shadow-[0_0_10px_rgba(0,210,106,0.5)]" />
-            <span className="text-[#00d26a]">LIVE</span>
-          </div>
+      {/* Main Content */}
+      <main className="relative z-10 p-6">
+        {/* Mobile Navigation */}
+        <div className="md:hidden mb-6">
+          <select
+            value={activeSection}
+            onChange={(e) => setActiveSection(e.target.value as 'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts' | 'superchain')}
+            className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-white"
+          >
+            <option value="home">🏠 Home</option>
+            <option value="ai-agent">🤖 AI Agent</option>
+            <option value="l2-explorer">🌐 L2 Explorer</option>
+            <option value="scanner">🔍 Token Scanner</option>
+            <option value="airdrop-inspector">🎁 Airdrop Inspector</option>
+            <option value="token-charts">📊 Token Charts</option>
+            <option value="superchain">⛓️ Superchain</option>
+          </select>
         </div>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-[#12151a] border border-[#2a3040] p-4 animate-pulse">
-                <div className="h-3 w-16 bg-[#2a3040] mb-2" />
-                <div className="h-6 w-24 bg-[#2a3040]" />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-[#12151a] border border-[#ff4444] border-l-4 p-4">
-            <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-[#ff4444] shadow-[0_0_10px_rgba(255,68,68,0.5)]" />
-              <div>
-                <div className="text-sm text-[#ff4444]">CONNECTION ERROR</div>
-                <div className="text-xs text-[#5f6368]">Unable to fetch data from API - Check if backend is running</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Dashboard Content */}
-        {overview && activeSection === 'dashboard' && (
-          <div className="space-y-6">
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <MetricCard label="TOTAL CHAINS" value={overview.total_chains.toString()} subValue={`${overview.active_chains} active`} />
-              <MetricCard label="TOTAL TOKENS" value={formatNumber(overview.total_tokens)} subValue="tracked" />
-              <MetricCard label="24H VOLUME" value={formatCurrency(overview.total_volume_24h)} change={12.5} />
-              <MetricCard label="TOTAL TVL" value={formatCurrency(overview.total_tvl)} change={-2.3} />
-              <MetricCard label="INTEROP TOKENS" value={overview.interop_ready_tokens.toString()} subValue="cross-chain" status="online" />
-              <MetricCard label="DATA LATENCY" value="~2.4s" subValue="avg response" status="online" />
-            </div>
-
-            {/* Two Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Chain Performance Table */}
-              <div className="lg:col-span-2 bg-[#12151a] border border-[#2a3040]">
-                <div className="px-4 py-3 border-b border-[#2a3040] flex items-center justify-between">
-                  <h2 className="text-xs uppercase tracking-wider text-[#5f6368]">Chain Performance</h2>
-                  <span className="text-[10px] text-[#3c4043]">SORTED BY TVL</span>
+        {activeSection === 'home' && (
+          <div>
+            {/* Hero Section */}
+            <div className={`text-center mb-12 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+              <h1 className="text-6xl md:text-8xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-cyan-400 bg-clip-text text-transparent">
+                  Intent Layer
+                </span>
+              </h1>
+              <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto">
+                The world's first natural language interface for DeFi with zkCodex-style analytics
+              </p>
+              
+              <div className="flex flex-wrap justify-center gap-3 mb-8">
+                <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full px-4 py-2">
+                  <span className="text-sm font-medium">🌍 4 Languages</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-[#1a1e25]">
-                        <th className="text-left py-3 px-4 text-[10px] uppercase tracking-wider text-[#5f6368] font-medium">Chain</th>
-                        <th className="text-left py-3 px-4 text-[10px] uppercase tracking-wider text-[#5f6368] font-medium">Tokens</th>
-                        <th className="text-left py-3 px-4 text-[10px] uppercase tracking-wider text-[#5f6368] font-medium">24H Volume</th>
-                        <th className="text-left py-3 px-4 text-[10px] uppercase tracking-wider text-[#5f6368] font-medium">TVL</th>
-                        <th className="text-left py-3 px-4 text-[10px] uppercase tracking-wider text-[#5f6368] font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overview.chains
-                        .sort((a, b) => b.total_tvl - a.total_tvl)
-                        .slice(0, 10)
-                        .map((chain) => (
-                          <tr key={chain.slug} className="border-b border-[#2a3040] hover:bg-[rgba(0,210,106,0.03)] transition-colors">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3" style={{ backgroundColor: CHAIN_COLORS[chain.slug] || '#666' }} />
-                                <span className="text-white">{chain.name}</span>
-                                <span className="text-[10px] text-[#3c4043]">#{chain.chain_id}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 font-mono text-[#9aa0a6]">{chain.token_count.toLocaleString()}</td>
-                            <td className="py-3 px-4 font-mono text-[#9aa0a6]">{formatCurrency(chain.total_volume_24h)}</td>
-                            <td className="py-3 px-4 font-mono text-[#9aa0a6]">{formatCurrency(chain.total_tvl)}</td>
-                            <td className="py-3 px-4">
-                              <span className={`w-2 h-2 rounded-full inline-block ${chain.is_active ? 'bg-[#00d26a]' : 'bg-[#5f6368]'}`} />
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
+                <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 rounded-full px-4 py-2">
+                  <span className="text-sm font-medium">📊 Multi-Chain</span>
                 </div>
-              </div>
-
-              {/* Activity Feed */}
-              <div className="bg-[#12151a] border border-[#2a3040] flex flex-col">
-                <div className="px-4 py-3 border-b border-[#2a3040]">
-                  <h2 className="text-xs uppercase tracking-wider text-[#5f6368]">System Activity</h2>
-                </div>
-                <div className="flex-1 overflow-y-auto max-h-96">
-                  <ActivityFeed />
+                <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-full px-4 py-2">
+                  <span className="text-sm font-medium">🎁 Airdrops</span>
                 </div>
               </div>
             </div>
 
-            {/* Chain Grid */}
-            <div className="bg-[#12151a] border border-[#2a3040]">
-              <div className="px-4 py-3 border-b border-[#2a3040]">
-                <h2 className="text-xs uppercase tracking-wider text-[#5f6368]">Network Status Grid</h2>
-              </div>
-              <div className="p-4 grid grid-cols-4 md:grid-cols-7 lg:grid-cols-10 gap-2">
-                {overview.chains.map((chain) => (
-                  <ChainTile key={chain.slug} chain={chain} />
-                ))}
+            {/* Quick Actions */}
+            <div className="max-w-5xl mx-auto mb-12">
+              <h3 className="text-2xl font-bold text-center mb-6">🚀 Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <button
+                  onClick={() => setActiveSection('ai-agent')}
+                  className="p-6 rounded-xl border bg-purple-900/20 border-purple-500/30 hover:bg-purple-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🤖</div>
+                  <h4 className="font-semibold mb-1">AI Agent</h4>
+                  <p className="text-sm text-gray-400">Smart strategies</p>
+                </button>
+                
+                <button
+                  onClick={() => setActiveSection('l2-explorer')}
+                  className="p-6 rounded-xl border bg-purple-900/20 border-purple-500/30 hover:bg-purple-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🌐</div>
+                  <h4 className="font-semibold mb-1">L2 Explorer</h4>
+                  <p className="text-sm text-gray-400">Superchain</p>
+                </button>
+                
+                <button
+                  onClick={() => setActiveSection('scanner')}
+                  className="p-6 rounded-xl border bg-green-900/20 border-green-500/30 hover:bg-green-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🔍</div>
+                  <h4 className="font-semibold mb-1">Token Scanner</h4>
+                  <p className="text-sm text-gray-400">Analyze tokens</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveSection('airdrop-inspector')}
+                  className="p-6 rounded-xl border bg-gradient-to-br from-purple-900/20 to-pink-900/20 border-purple-500/30 hover:from-purple-900/30 hover:to-pink-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🎁</div>
+                  <h4 className="font-semibold mb-1">Airdrop Inspector</h4>
+                  <p className="text-sm text-gray-400">Hunt airdrops</p>
+                </button>
+                
+                <button
+                  onClick={() => setShowBridgeModal(true)}
+                  className="p-6 rounded-xl border bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">🌉</div>
+                  <h4 className="font-semibold mb-1">Bridge</h4>
+                  <p className="text-sm text-gray-400">Cross-chain</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveSection('token-charts')}
+                  className="p-6 rounded-xl border bg-gradient-to-br from-green-900/20 to-blue-900/20 border-green-500/30 hover:from-green-900/30 hover:to-blue-900/30 transition-all"
+                >
+                  <div className="text-3xl mb-2">📊</div>
+                  <h4 className="font-semibold mb-1">Token Charts</h4>
+                  <p className="text-sm text-gray-400">Live prices</p>
+                </button>
               </div>
             </div>
 
-            {/* Quick Links */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link href="/tokens" className="bg-[#12151a] border border-[#2a3040] p-4 hover:border-[#00d26a] transition-colors group">
-                <div className="text-2xl mb-2">🔍</div>
-                <div className="text-sm font-semibold group-hover:text-[#00d26a] transition-colors">Token Explorer</div>
-                <div className="text-[10px] text-[#5f6368]">Search & analyze tokens</div>
-              </Link>
-              <Link href="/docs" className="bg-[#12151a] border border-[#2a3040] p-4 hover:border-[#00b8d4] transition-colors group">
-                <div className="text-2xl mb-2">📚</div>
-                <div className="text-sm font-semibold group-hover:text-[#00b8d4] transition-colors">API Documentation</div>
-                <div className="text-[10px] text-[#5f6368]">Developer resources</div>
-              </Link>
-              <a href="https://atlas.optimism.io" target="_blank" rel="noopener noreferrer" className="bg-[#12151a] border border-[#2a3040] p-4 hover:border-[#ff0420] transition-colors group">
-                <div className="text-2xl mb-2">🏆</div>
-                <div className="text-sm font-semibold group-hover:text-[#ff0420] transition-colors">Optimism Atlas</div>
-                <div className="text-[10px] text-[#5f6368]">Growth Grants</div>
-              </a>
-              <a href="https://github.com/serayd61/Superchain-token-explorer" target="_blank" rel="noopener noreferrer" className="bg-[#12151a] border border-[#2a3040] p-4 hover:border-white transition-colors group">
-                <div className="text-2xl mb-2">⚡</div>
-                <div className="text-sm font-semibold group-hover:text-white transition-colors">GitHub</div>
-                <div className="text-[10px] text-[#5f6368]">Open source</div>
-              </a>
+            {/* AI Intent Input */}
+            <div className="max-w-4xl mx-auto mb-16">
+              <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-2xl p-8">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold mb-2">🤖 AI DeFi Assistant</h3>
+                  <p className="text-gray-300">Powered by GitHub Models - Free AI for everyone</p>
+                  <button
+                    onClick={() => setActiveSection('ai-chat')}
+                    className="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold"
+                  >
+                    🚀 Launch AI Assistant
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                  <div className="p-4 bg-gray-900/30 rounded-lg">
+                    <div className="text-2xl mb-2">💰</div>
+                    <h4 className="font-semibold">Yield Strategies</h4>
+                    <p className="text-sm text-gray-400">Get personalized DeFi recommendations</p>
+                  </div>
+                  <div className="p-4 bg-gray-900/30 rounded-lg">
+                    <div className="text-2xl mb-2">🔍</div>
+                    <h4 className="font-semibold">Token Analysis</h4>
+                    <p className="text-sm text-gray-400">AI-powered risk assessment</p>
+                  </div>
+                  <div className="p-4 bg-gray-900/30 rounded-lg">
+                    <div className="text-2xl mb-2">🌉</div>
+                    <h4 className="font-semibold">Bridge Guidance</h4>
+                    <p className="text-sm text-gray-400">Multi-chain route optimization</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="text-center">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <button 
+                  onClick={() => setActiveSection('ai-agent')}
+                  className="px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold text-lg"
+                >
+                  🤖 Try AI Agent
+                </button>
+                <button 
+                  onClick={() => setActiveSection('l2-explorer')}
+                  className="px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold text-lg"
+                >
+                  🌐 Explore L2s
+                </button>
+                <button 
+                  onClick={() => setActiveSection('scanner')}
+                  className="px-6 py-4 bg-gradient-to-r from-green-600 to-blue-600 rounded-xl hover:from-green-700 hover:to-blue-700 transition-all font-semibold text-lg"
+                >
+                  🔍 Scan Tokens
+                </button>
+                <button 
+                  onClick={() => setShowStartDeFiModal(true)}
+                  className="px-6 py-4 bg-gradient-to-r from-yellow-600 to-red-600 rounded-xl hover:from-yellow-700 hover:to-red-700 transition-all font-semibold text-lg"
+                >
+                  🚀 Start DeFi
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Chains Section */}
-        {overview && activeSection === 'chains' && (
-          <ChainsSection chains={overview.chains} />
-        )}
-
-        {/* Analytics Section */}
-        {activeSection === 'analytics' && (
-          <div className="bg-[#12151a] border border-[#2a3040] p-8 text-center">
-            <div className="text-4xl mb-4">📊</div>
-            <h2 className="text-xl font-semibold mb-2">Analytics Coming Soon</h2>
-            <p className="text-[#5f6368]">Historical trends and comparative analytics</p>
+        {/* AI Agent Section */}
+        {activeSection === 'ai-agent' && (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-purple-400 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
+                  AI DeFi Agent
+                </span>
+              </h1>
+              <p className="text-xl text-gray-300 mb-8 max-w-4xl mx-auto">
+                Intelligent strategy optimization, risk analysis, and portfolio management
+              </p>
+            </div>
+            <AIAgentDashboard />
           </div>
         )}
 
-        {/* Interop Section */}
-        {activeSection === 'interop' && (
-          <div className="bg-[#12151a] border border-[#2a3040] p-8 text-center">
-            <div className="text-4xl mb-4">🔗</div>
-            <h2 className="text-xl font-semibold mb-2">Interop Tracker (Beta)</h2>
-            <p className="text-[#5f6368]">SuperchainERC20 token tracking</p>
+        {/* L2 Explorer Section */}
+        {activeSection === 'l2-explorer' && (
+          <div className="space-y-8">
+            <L2Explorer />
+          </div>
+        )}
+
+        {/* AI Chat Section */}
+        {activeSection === 'ai-chat' && (
+          <div className="space-y-8">
+            <AIChat />
+          </div>
+        )}
+
+        {/* Token Scanner Section */}
+        {activeSection === 'scanner' && (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-green-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+                  Token Scanner
+                </span>
+              </h1>
+              <p className="text-xl text-gray-300 mb-8 max-w-4xl mx-auto">
+                Advanced AI-powered token analysis with comprehensive risk assessment
+              </p>
+            </div>
+            <AdvancedTokenScanner />
+          </div>
+        )}
+
+        {/* Airdrop Inspector Section */}
+        {activeSection === 'airdrop-inspector' && (
+          <div className="space-y-8">
+            <AirdropInspector />
+          </div>
+        )}
+
+        {/* Token Charts Section */}
+        {activeSection === 'token-charts' && (
+          <div className="space-y-8">
+            <TokenCharts />
+          </div>
+        )}
+
+        {/* Superchain Analytics Section */}
+        {activeSection === 'superchain' && (
+          <div className="space-y-8">
+            <SuperchainDashboard />
           </div>
         )}
       </main>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          FOOTER
-      ═══════════════════════════════════════════════════════════════════ */}
-      <footer className="h-8 bg-[#12151a] border-t border-[#2a3040] flex items-center justify-between px-4 text-[10px] text-[#3c4043]">
-        <div className="flex items-center gap-4">
-          <span>SUPERCHAIN TOKEN EXPLORER</span>
-          <span className="text-[#2a3040]">|</span>
-          <span>19 CHAINS ACTIVE</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>OPTIMISM ATLAS ELIGIBLE</span>
-          <span className="text-[#2a3040]">|</span>
-          <a href="https://atlas.optimism.io" target="_blank" rel="noopener noreferrer" className="text-[#ff0420] hover:underline">
-            GROWTH GRANTS
+      {/* Footer */}
+      <footer className="relative z-10 mt-16 p-6 border-t border-white/10 text-center text-gray-400">
+        <p className="mb-4">Built for RetroPGF • AI-Powered DeFi Platform • Superchain Explorer</p>
+        
+        {/* Social Links */}
+        <div className="flex justify-center space-x-6 mb-6">
+          <a 
+            href="https://twitter.com/serayd61" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center space-x-2 hover:text-blue-400 transition-colors"
+          >
+            <span>🐦</span>
+            <span>Twitter</span>
+          </a>
+          <a 
+            href="https://github.com/serayd61" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center space-x-2 hover:text-gray-300 transition-colors"
+          >
+            <span>⚡</span>
+            <span>GitHub</span>
+          </a>
+          <a 
+            href="/docs" 
+            className="flex items-center space-x-2 hover:text-purple-400 transition-colors"
+          >
+            <span>📚</span>
+            <span>Docs</span>
           </a>
         </div>
+
+        {/* Donate Section */}
+        <div className="max-w-md mx-auto">
+          <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-xl p-4">
+            <h4 className="text-purple-300 font-semibold mb-2 flex items-center justify-center">
+              <span className="mr-2">💝</span>
+              Support Development
+            </h4>
+            <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+              <p className="text-xs text-gray-400 mb-1">Donate Address (ETH/Base/Arbitrum):</p>
+              <div className="flex items-center justify-between">
+                <code className="text-sm text-blue-300 font-mono">
+                  0x7FbD935c9972b6A4c0b6F7c6f650996677bF6e0A
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('0x7FbD935c9972b6A4c0b6F7c6f650996677bF6e0A');
+                  }}
+                  className="ml-2 text-gray-400 hover:text-white transition-colors"
+                  title="Copy address"
+                >
+                  📋
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Help us build the future of DeFi UX! 🚀</p>
+          </div>
+        </div>
+
+        {/* Copyright */}
+        <div className="mt-6 pt-4 border-t border-gray-800">
+          <p className="text-xs text-gray-500">
+            © 2025 Superchain Explorer • Made with ❤️ for the crypto community
+          </p>
+        </div>
       </footer>
-    </div>
-  );
-}
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SUB-COMPONENTS
-// ═══════════════════════════════════════════════════════════════════════════
+      {/* Wallet Connect Component */}
+      <WalletConnect
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+        onConnect={handleWalletConnect}
+      />
 
-function StatusIndicator({ label, status }: { label: string; status: 'online' | 'degraded' | 'offline' }) {
-  const colors = {
-    online: '#00d26a',
-    degraded: '#ffc107',
-    offline: '#ff4444',
-  };
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[status], boxShadow: status === 'online' ? '0 0 10px rgba(0,210,106,0.5)' : undefined }} />
-      <span className="text-[#5f6368]">{label}</span>
-    </div>
-  );
-}
+      {/* Bridge Modal */}
+      {showBridgeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-xl p-6 max-w-lg w-full border border-gray-700">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">Bridge Assets</h3>
+              <button
+                onClick={() => setShowBridgeModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">From Network</label>
+                <select
+                  value={bridge.fromNetwork}
+                  onChange={(e) => setBridge(prev => ({ ...prev, fromNetwork: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
+                >
+                  {supportedNetworks.map(network => (
+                    <option key={network.name} value={network.name}>{network.name}</option>
+                  ))}
+                </select>
+              </div>
 
-function MetricCard({ label, value, subValue, change, status }: { label: string; value: string; subValue?: string; change?: number; status?: 'online' | 'warning' | 'critical' }) {
-  return (
-    <div className={`bg-[#12151a] border border-[#2a3040] p-4 relative overflow-hidden ${status === 'critical' ? 'border-l-[#ff4444]' : ''}`}>
-      <div className={`absolute top-0 left-0 w-1 h-full ${status === 'online' ? 'bg-[#00d26a]' : status === 'warning' ? 'bg-[#ffc107]' : status === 'critical' ? 'bg-[#ff4444]' : 'bg-[#00d26a]'}`} />
-      <div className="text-[10px] uppercase tracking-wider text-[#5f6368] mb-1">{label}</div>
-      <div className="text-2xl font-semibold">{value}</div>
-      {subValue && <div className="text-[10px] text-[#5f6368] mt-1">{subValue}</div>}
-      {change !== undefined && (
-        <div className={`text-[11px] mt-1 ${change >= 0 ? 'text-[#00d26a]' : 'text-[#ff4444]'}`}>
-          {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">To Network</label>
+                <select
+                  value={bridge.toNetwork}
+                  onChange={(e) => setBridge(prev => ({ ...prev, toNetwork: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
+                >
+                  {supportedNetworks.filter(net => net.name !== bridge.fromNetwork).map(network => (
+                    <option key={network.name} value={network.name}>{network.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Asset</label>
+                <select
+                  value={bridge.asset}
+                  onChange={(e) => setBridge(prev => ({ ...prev, asset: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
+                >
+                  {supportedAssets.map(asset => (
+                    <option key={asset.symbol} value={asset.symbol}>
+                      {asset.icon} {asset.symbol} - {asset.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Amount</label>
+                <input
+                  type="number"
+                  placeholder="0.0"
+                  value={bridge.amount}
+                  onChange={(e) => setBridge(prev => ({ ...prev, amount: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="bg-gray-800/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Time</span>
+                  <span className="text-white">{bridge.estimatedTime}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Fees</span>
+                  <span className="text-white">{bridge.fees}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">You'll Receive</span>
+                  <span className="text-green-400">{bridge.amount || '0'} {bridge.asset}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={bridgeAssets}
+                disabled={!bridge.amount || !wallet.isConnected || bridgeStatus === 'bridging'}
+                className={`w-full py-3 rounded-lg font-medium transition-all ${
+                  bridgeStatus === 'bridging'
+                    ? 'bg-yellow-600/20 text-yellow-400'
+                    : bridgeStatus === 'success'
+                    ? 'bg-green-600/20 text-green-400'
+                    : bridgeStatus === 'error'
+                    ? 'bg-red-600/20 text-red-400'
+                    : wallet.isConnected && bridge.amount
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                    : 'bg-gray-700/50 text-gray-400'
+                }`}
+              >
+                {bridgeStatus === 'bridging' ? 'Bridging...' :
+                 bridgeStatus === 'success' ? '✅ Success!' :
+                 bridgeStatus === 'error' ? '❌ Failed' :
+                 !wallet.isConnected ? 'Connect Wallet' :
+                 !bridge.amount ? 'Enter Amount' :
+                 `Bridge ${bridge.amount} ${bridge.asset}`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Start DeFi Modal */}
+      <StartDeFiModal 
+        isOpen={showStartDeFiModal}
+        onClose={() => setShowStartDeFiModal(false)}
+      />
     </div>
   );
-}
-
-function ChainTile({ chain }: { chain: ChainMetric }) {
-  const color = CHAIN_COLORS[chain.slug] || '#666';
-  return (
-    <div className="aspect-square border border-[#2a3040] p-2 flex flex-col items-center justify-center hover:border-[#3d4860] transition-colors cursor-pointer group" title={`${chain.name} - ${chain.token_count} tokens`}>
-      <div className="w-4 h-4 mb-1 transition-transform group-hover:scale-110" style={{ backgroundColor: color, boxShadow: chain.is_active ? `0 0 10px ${color}40` : undefined }} />
-      <div className="text-[8px] text-[#5f6368] uppercase truncate w-full text-center">{chain.slug}</div>
-      <div className="text-[9px] font-mono text-[#3c4043]">{chain.token_count}</div>
-    </div>
-  );
-}
-
-function ActivityFeed() {
-  const activities = [
-    { message: 'New token detected on Base', time: '12s ago', status: 'info' },
-    { message: 'Chain sync completed: Optimism', time: '45s ago', status: 'success' },
-    { message: 'High volume spike on Unichain', time: '2m ago', status: 'warning' },
-    { message: 'Interop token verified: USDC', time: '5m ago', status: 'success' },
-    { message: 'Price feed updated: 847 tokens', time: '8m ago', status: 'info' },
-    { message: 'API rate limit reset', time: '15m ago', status: 'info' },
-  ];
-  const statusColors = { info: '#00b8d4', success: '#00d26a', warning: '#ffc107', error: '#ff4444' };
-
-  return (
-    <div className="divide-y divide-[#2a3040]">
-      {activities.map((activity, index) => (
-        <div key={index} className="px-4 py-3 hover:bg-[#1a1e25] transition-colors">
-          <div className="flex items-start gap-3">
-            <div className="w-1.5 h-1.5 mt-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusColors[activity.status as keyof typeof statusColors] }} />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs text-[#9aa0a6] truncate">{activity.message}</div>
-              <div className="text-[10px] text-[#3c4043] mt-0.5">{activity.time}</div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ChainsSection({ chains }: { chains: ChainMetric[] }) {
-  return (
-    <div className="space-y-6">
-      {/* Tier Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((tier) => {
-          const tierChains = chains.filter(c => c.priority === tier);
-          return (
-            <MetricCard key={tier} label={`TIER ${tier}`} value={tierChains.length.toString()} subValue={tier === 1 ? 'Primary' : tier === 2 ? 'Growing' : tier === 3 ? 'Emerging' : 'New'} />
-          );
-        })}
-      </div>
-
-      {/* Chain Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {chains.map((chain) => (
-          <div key={chain.slug} className="bg-[#12151a] border border-[#2a3040] p-4 hover:border-[#3d4860] transition-colors">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 flex items-center justify-center" style={{ backgroundColor: CHAIN_COLORS[chain.slug] || '#666' }}>
-                  <span className="text-white text-[10px] font-bold">{chain.slug.slice(0, 2).toUpperCase()}</span>
-                </div>
-                <div>
-                  <div className="text-sm font-medium">{chain.name}</div>
-                  <div className="text-[10px] text-[#3c4043]">ID: {chain.chain_id}</div>
-                </div>
-              </div>
-              <span className={`w-2 h-2 rounded-full ${chain.is_active ? 'bg-[#00d26a]' : 'bg-[#5f6368]'}`} />
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <div className="text-[#3c4043]">TOKENS</div>
-                <div className="text-[#9aa0a6] font-mono">{chain.token_count}</div>
-              </div>
-              <div>
-                <div className="text-[#3c4043]">TIER</div>
-                <div className="text-[#9aa0a6] font-mono">{chain.priority}</div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ICONS
-// ═══════════════════════════════════════════════════════════════════════════
-
-function GridIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="1" y="1" width="6" height="6" />
-      <rect x="9" y="1" width="6" height="6" />
-      <rect x="1" y="9" width="6" height="6" />
-      <rect x="9" y="9" width="6" height="6" />
-    </svg>
-  );
-}
-
-function ScanIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="7" cy="7" r="5" />
-      <path d="M11 11L14 14" />
-    </svg>
-  );
-}
-
-function ChainIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="4" cy="4" r="2" />
-      <circle cx="12" cy="4" r="2" />
-      <circle cx="4" cy="12" r="2" />
-      <circle cx="12" cy="12" r="2" />
-      <path d="M6 4H10M4 6V10M12 6V10M6 12H10" />
-    </svg>
-  );
-}
-
-function ChartIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M1 14V2M1 14H15M4 10L7 6L10 8L14 3" />
-    </svg>
-  );
-}
-
-function BridgeIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M1 8H6M10 8H15" />
-      <circle cx="8" cy="8" r="2" />
-      <path d="M3 5V11M13 5V11" />
-    </svg>
-  );
-}
-
-function CodeIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M5 4L1 8L5 12M11 4L15 8L11 12M9 2L7 14" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M1 1L13 13M13 1L1 13" />
-    </svg>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// UTILITIES
-// ═══════════════════════════════════════════════════════════════════════════
-
-function formatNumber(num: number): string {
-  if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-  if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-  return num.toLocaleString();
-}
-
-function formatCurrency(num: number): string {
-  if (num >= 1e9) return '$' + (num / 1e9).toFixed(2) + 'B';
-  if (num >= 1e6) return '$' + (num / 1e6).toFixed(2) + 'M';
-  if (num >= 1e3) return '$' + (num / 1e3).toFixed(2) + 'K';
-  return '$' + num.toFixed(2);
 }
