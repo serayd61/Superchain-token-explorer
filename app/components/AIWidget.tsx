@@ -27,19 +27,38 @@ export default function ProfessionalAIWidget() {
     activeUsers: 0
   });
 
-  const API_BASE = 'http://localhost:3003/api';
+  // Use environment variable or fallback to backend API
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
-    fetchRevenue();
-  }, []);
+    // Only fetch revenue when widget is opened to avoid unnecessary errors
+    if (isOpen) {
+      fetchRevenue();
+    }
+  }, [isOpen]);
 
   const fetchRevenue = async () => {
     try {
-      const response = await fetch(`${API_BASE}/revenue`);
-      const data = await response.json();
-      setRevenue(data);
+      // Use the health endpoint to get basic stats
+      const response = await fetch(`${API_BASE}/api/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Map health data to revenue format
+        setRevenue({
+          dailyRevenue: '0.00', // Will be updated when we have real revenue tracking
+          totalCalls: data.total_tokens || 0,
+          activeUsers: data.active_chains || 0
+        });
+      }
     } catch (error) {
-      console.error('Revenue fetch failed:', error);
+      // Silently fail - widget will show default values
+      console.log('Stats fetch skipped - backend may not be running');
     }
   };
 
@@ -53,38 +72,47 @@ export default function ProfessionalAIWidget() {
     setResults(prev => ({ ...prev, token: '🔍 Analyzing token...' }));
 
     try {
-      const response = await fetch(`${API_BASE}/analyze-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tokenAddress: tokenAddress.trim(),
-          blockchain: blockchain
-        })
-      });
+      // Map blockchain to chain slug
+      const chainMap: Record<string, string> = {
+        'ethereum': 'ethereum',
+        'base': 'base',
+        'optimism': 'optimism',
+        'bsc': 'bsc',
+        'solana': 'solana'
+      };
+      const chainSlug = chainMap[blockchain] || 'base';
 
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        const analysis = `✅ ANALYSIS COMPLETE
-
-💰 PRICE: ${result.data.data.price}
-📈 24H VOLUME: ${result.data.data.volume24h}
-📊 24H CHANGE: ${result.data.data.priceChange24h}
-🏦 MARKET CAP: ${result.data.data.marketCap}
-
-📝 ${result.data.data.analysis}
-
-💵 PROFIT: $${result.billing.profit}`;
+      // Try to fetch token from our API
+      const response = await fetch(`${API_BASE}/api/tokens/search?q=${encodeURIComponent(tokenAddress.trim())}&chain=${chainSlug}`);
+      
+      if (response.ok) {
+        const tokens = await response.json();
         
-        setResults(prev => ({ ...prev, token: analysis }));
-        await fetchRevenue();
+        if (tokens && tokens.length > 0) {
+          const token = tokens[0];
+          const analysis = `✅ ANALYSIS COMPLETE
+
+🪙 TOKEN: ${token.name} (${token.symbol})
+💰 PRICE: $${token.price_usd?.toFixed(6) || 'N/A'}
+📈 24H VOLUME: $${token.volume_24h?.toLocaleString() || 'N/A'}
+📊 24H CHANGE: ${token.price_change_24h?.toFixed(2) || 'N/A'}%
+🏦 MARKET CAP: $${token.market_cap?.toLocaleString() || 'N/A'}
+💧 LIQUIDITY: $${token.liquidity_usd?.toLocaleString() || 'N/A'}
+
+📍 ADDRESS: ${token.address}
+🔗 CHAIN: ${token.chain}
+
+${token.is_interop_ready ? '✅ Interop Ready (SuperchainERC20)' : ''}`;
+          
+          setResults(prev => ({ ...prev, token: analysis }));
+        } else {
+          setResults(prev => ({ ...prev, token: '❌ Token not found. Try a different address or symbol.' }));
+        }
       } else {
-        setResults(prev => ({ ...prev, token: '❌ Analysis failed' }));
+        setResults(prev => ({ ...prev, token: '❌ API error. Please try again.' }));
       }
     } catch (error) {
-      setResults(prev => ({ ...prev, token: `❌ ERROR: ${error}` }));
+      setResults(prev => ({ ...prev, token: `❌ Network error. Make sure the backend is running.` }));
     } finally {
       setLoading(prev => ({ ...prev, token: false }));
     }
@@ -95,36 +123,50 @@ export default function ProfessionalAIWidget() {
     setResults(prev => ({ ...prev, airdrop: '🎁 Hunting airdrops...' }));
 
     try {
-      const response = await fetch(`${API_BASE}/hunt-airdrops`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({})
-      });
+      // Fetch interop-ready tokens (potential airdrop candidates)
+      const response = await fetch(`${API_BASE}/api/superchain/interop/tokens`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        const tokens = data.tokens || [];
+        
+        // Fetch growth metrics for additional context
+        let tvlData = { total_tvl_usd: 0, chains_count: 0 };
+        try {
+          const tvlResponse = await fetch(`${API_BASE}/api/superchain/tvl/real`);
+          if (tvlResponse.ok) {
+            tvlData = await tvlResponse.json();
+          }
+        } catch {
+          // Ignore TVL fetch errors
+        }
 
-      const result = await response.json();
+        const analysis = `🎁 SUPERCHAIN AIRDROP HUNT COMPLETE!
 
-      if (result.success) {
-        const opportunities = result.data.data.opportunities;
-        const analysis = `🎁 AIRDROP HUNT COMPLETE!
+📊 ECOSYSTEM STATS:
+💰 Total TVL: $${(tvlData.total_tvl_usd / 1e9).toFixed(2)}B
+🔗 Active Chains: ${tvlData.chains_count || 19}
+🪙 Interop Tokens: ${tokens.length}
 
-🆕 NEW TOKENS: ${result.data.data.newTokens}
-🎓 GRADUATED: ${result.data.data.graduated}
-🚀 TOP GAINER: ${result.data.data.topGainer}
+🎯 TOP AIRDROP OPPORTUNITIES:
 
-🎯 OPPORTUNITIES:
-${opportunities.map((opp: any) => `• ${opp.name} (${opp.potential} on ${opp.chain})`).join('\n')}
+${tokens.slice(0, 5).map((token: any, i: number) => 
+  `${i + 1}. ${token.symbol} on ${token.chain}
+   • Interop Ready: ${token.is_interop_ready ? '✅' : '❌'}
+   • SuperchainERC20: ${token.is_superchain_erc20 ? '✅' : '❌'}`
+).join('\n\n')}
 
-💵 PROFIT: $${result.billing.profit}`;
+💡 TIP: Tokens with SuperchainERC20 support are 
+more likely to receive cross-chain airdrops!
+
+🔗 Check atlas.optimism.io for active grants`;
         
         setResults(prev => ({ ...prev, airdrop: analysis }));
-        await fetchRevenue();
       } else {
-        setResults(prev => ({ ...prev, airdrop: '❌ Airdrop hunt failed' }));
+        setResults(prev => ({ ...prev, airdrop: '❌ Could not fetch airdrop data. Backend may be offline.' }));
       }
     } catch (error) {
-      setResults(prev => ({ ...prev, airdrop: `❌ ERROR: ${error}` }));
+      setResults(prev => ({ ...prev, airdrop: `❌ Network error. Make sure the backend is running.` }));
     } finally {
       setLoading(prev => ({ ...prev, airdrop: false }));
     }

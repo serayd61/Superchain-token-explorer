@@ -16,6 +16,10 @@ from app.ingestion.fetchers.interop import (
     get_interop_ready_tokens,
     KNOWN_SUPERCHAIN_TOKENS
 )
+from app.ingestion.fetchers.defillama import (
+    get_defillama_fetcher,
+    get_superchain_tvl_summary,
+)
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -336,4 +340,177 @@ async def get_superchain_tvl(db: Session = Depends(get_db)):
         "total_tvl_usd": total_tvl,
         "chains": tvl_data,
         "last_updated": datetime.utcnow().isoformat(),
+    }
+
+
+# ============================================
+# DEFILLAMA REAL DATA ENDPOINTS
+# ============================================
+
+@router.get("/tvl/real")
+async def get_real_tvl():
+    """Get REAL TVL data from DefiLlama for all Superchain networks.
+    
+    This endpoint provides actual, verified TVL data from DefiLlama,
+    which is the industry standard for DeFi analytics.
+    
+    Perfect for Growth Grants metrics tracking.
+    """
+    return await get_superchain_tvl_summary()
+
+
+@router.get("/tvl/chain/{chain_slug}")
+async def get_chain_tvl_detail(chain_slug: str):
+    """Get detailed TVL data for a specific chain.
+    
+    Includes:
+    - Current TVL
+    - 24h, 7d, 30d changes
+    - Top protocols by TVL
+    """
+    fetcher = get_defillama_fetcher()
+    
+    tvl_data = await fetcher.get_chain_tvl(chain_slug)
+    if not tvl_data:
+        raise HTTPException(status_code=404, detail=f"Chain {chain_slug} not found in DefiLlama")
+    
+    protocols = await fetcher.get_protocols_on_chain(chain_slug)
+    
+    return {
+        **tvl_data,
+        "top_protocols": protocols[:20],
+        "protocol_count": len(protocols),
+    }
+
+
+@router.get("/yields")
+async def get_superchain_yields(
+    chain: Optional[str] = Query(default=None, description="Filter by chain slug"),
+    min_apy: Optional[float] = Query(default=None, description="Minimum APY filter"),
+    stablecoin_only: bool = Query(default=False, description="Only show stablecoin pools"),
+):
+    """Get yield/APY data for pools across Superchain networks.
+    
+    Data from DefiLlama Yields API - the most comprehensive
+    yield aggregator in DeFi.
+    """
+    fetcher = get_defillama_fetcher()
+    yields = await fetcher.get_yields(chain)
+    
+    # Apply filters
+    if min_apy is not None:
+        yields = [y for y in yields if (y.get("apy") or 0) >= min_apy]
+    
+    if stablecoin_only:
+        yields = [y for y in yields if y.get("stable_coin")]
+    
+    # Group by chain
+    by_chain = {}
+    for y in yields:
+        chain_slug = y["chain"]
+        if chain_slug not in by_chain:
+            by_chain[chain_slug] = []
+        by_chain[chain_slug].append(y)
+    
+    return {
+        "total_pools": len(yields),
+        "pools": yields[:50],  # Top 50
+        "by_chain": {k: v[:10] for k, v in by_chain.items()},  # Top 10 per chain
+        "last_updated": datetime.utcnow().isoformat(),
+        "source": "DefiLlama",
+    }
+
+
+@router.get("/protocols/{chain_slug}")
+async def get_chain_protocols(chain_slug: str):
+    """Get all DeFi protocols on a specific chain.
+    
+    Returns protocols sorted by TVL with their categories.
+    """
+    fetcher = get_defillama_fetcher()
+    protocols = await fetcher.get_protocols_on_chain(chain_slug)
+    
+    if not protocols:
+        raise HTTPException(status_code=404, detail=f"No protocols found for {chain_slug}")
+    
+    # Group by category
+    by_category = {}
+    for p in protocols:
+        cat = p.get("category", "Other")
+        if cat not in by_category:
+            by_category[cat] = []
+        by_category[cat].append(p)
+    
+    return {
+        "chain": chain_slug,
+        "total_protocols": len(protocols),
+        "total_tvl": sum(p["tvl"] for p in protocols),
+        "protocols": protocols,
+        "by_category": by_category,
+    }
+
+
+@router.get("/stablecoins/{chain_slug}")
+async def get_chain_stablecoins(chain_slug: str):
+    """Get stablecoin data for a specific chain.
+    
+    Important for tracking ecosystem health and TVL composition.
+    """
+    fetcher = get_defillama_fetcher()
+    stables = await fetcher.get_stablecoins_on_chain(chain_slug)
+    
+    total_circulating = sum(s["circulating"] for s in stables)
+    
+    return {
+        "chain": chain_slug,
+        "total_stablecoin_supply": total_circulating,
+        "stablecoins": stables,
+        "count": len(stables),
+    }
+
+
+@router.get("/growth-metrics")
+async def get_growth_metrics(db: Session = Depends(get_db)):
+    """Get comprehensive growth metrics for Growth Grants application.
+    
+    This endpoint provides all the metrics needed for Optimism Growth Grants:
+    - TVL across Superchain
+    - TVL growth rates
+    - Protocol adoption
+    - Interop readiness
+    
+    Perfect for tracking and demonstrating impact.
+    """
+    # Get real TVL data
+    tvl_summary = await get_superchain_tvl_summary()
+    
+    # Get interop stats
+    interop_count = db.query(Token).filter(Token.is_interop_ready == True).count()
+    total_tokens = db.query(Token).count()
+    
+    # Get chain stats
+    active_chains = get_active_chains()
+    
+    return {
+        "tvl_metrics": {
+            "total_tvl_usd": tvl_summary["total_tvl_usd"],
+            "tvl_change_24h": tvl_summary["change_24h"],
+            "chains_tracked": tvl_summary["chains_count"],
+        },
+        "adoption_metrics": {
+            "total_tokens_tracked": total_tokens,
+            "interop_ready_tokens": interop_count,
+            "interop_percentage": (interop_count / total_tokens * 100) if total_tokens else 0,
+            "active_chains": len(active_chains),
+            "total_eligible_chains": 19,
+        },
+        "grant_alignment": {
+            "supports_tvl_tracking": True,
+            "supports_interop": True,
+            "supports_cross_chain": True,
+            "eligible_for_growth_grants": True,
+        },
+        "chains_by_tvl": tvl_summary["chains"][:10],
+        "last_updated": datetime.utcnow().isoformat(),
+        "data_source": "DefiLlama + On-chain",
     }

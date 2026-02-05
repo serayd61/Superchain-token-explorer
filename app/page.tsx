@@ -9,6 +9,7 @@ import WalletConnect from '../components/WalletConnect';
 import AirdropInspector from '../components/AirdropInspector';
 import TokenCharts from '../components/TokenCharts';
 import SuperchainDashboard from '../components/SuperchainDashboard';
+import GrowthMetricsDashboard from '../components/GrowthMetricsDashboard';
 import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect } from 'wagmi';
 
@@ -115,7 +116,7 @@ export default function ComprehensiveDeFiHomePage() {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'bridging' | 'success' | 'error'>('idle');
   const [isClient, setIsClient] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts' | 'superchain'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'ai-agent' | 'l2-explorer' | 'scanner' | 'ai-chat' | 'airdrop-inspector' | 'token-charts' | 'superchain' | 'growth-metrics'>('home');
 
   const examples = [
     { input: "I want to earn 15% on my $10k ETH", output: "Found 3 strategies averaging 14.2% APY" },
@@ -402,6 +403,12 @@ export default function ComprehensiveDeFiHomePage() {
             ⛓️ Superchain
           </button>
           <button
+            onClick={() => setActiveSection('growth-metrics')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeSection === 'growth-metrics' ? 'bg-gradient-to-r from-green-600/20 to-purple-600/20 border border-green-500/30 text-green-400' : 'text-gray-400 hover:text-white'}`}
+          >
+            📊 Growth
+          </button>
+          <button
             onClick={() => setShowStartDeFiModal(true)}
             className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all text-white font-medium"
           >
@@ -461,6 +468,7 @@ export default function ComprehensiveDeFiHomePage() {
             <option value="airdrop-inspector">🎁 Airdrop Inspector</option>
             <option value="token-charts">📊 Token Charts</option>
             <option value="superchain">⛓️ Superchain</option>
+            <option value="growth-metrics">📊 Growth Metrics</option>
           </select>
         </div>
 
@@ -682,6 +690,13 @@ export default function ComprehensiveDeFiHomePage() {
         {activeSection === 'superchain' && (
           <div className="space-y-8">
             <SuperchainDashboard />
+          </div>
+        )}
+
+        {/* Growth Metrics Section */}
+        {activeSection === 'growth-metrics' && (
+          <div className="space-y-8">
+            <GrowthMetricsDashboard />
           </div>
         )}
       </main>
