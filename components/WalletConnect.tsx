@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect, useBalance, useChainId, useSwitchChain } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
@@ -142,12 +142,52 @@ export default function WalletConnect({ isOpen, onClose, onConnect }: WalletConn
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  const getConnectorIcon = (connectorName: string) => {
+  // Wallet logo URLs - using official logos
+  const WALLET_LOGOS: Record<string, string> = {
+    metamask: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg',
+    'coinbase wallet': 'https://altcoinsbox.com/wp-content/uploads/2022/12/coinbase-logo.webp',
+    walletconnect: 'https://seeklogo.com/images/W/walletconnect-logo-EE83B50C97-seeklogo.com.png',
+    injected: 'https://cdn-icons-png.flaticon.com/512/2091/2091665.png',
+    keplr: 'https://avatars.githubusercontent.com/u/54990117?s=200&v=4',
+    'okx wallet': 'https://static.okx.com/cdn/assets/imgs/247/58E63FEA47A2B7D7.png',
+    phantom: 'https://phantom.app/img/phantom-logo.svg',
+    rabby: 'https://rabby.io/assets/images/logo-rabby.svg',
+    rainbow: 'https://avatars.githubusercontent.com/u/48327834?s=200&v=4',
+    trust: 'https://trustwallet.com/assets/images/media/assets/TWT.png',
+  };
+
+  const getConnectorIcon = (connectorName: string): React.ReactNode => {
+    const name = connectorName.toLowerCase();
+    const logoUrl = WALLET_LOGOS[name];
+    
+    if (logoUrl) {
+      return (
+        <img 
+          src={logoUrl} 
+          alt={connectorName} 
+          className="w-8 h-8 rounded-lg object-contain"
+          onError={(e) => {
+            // Fallback to emoji if image fails to load
+            const target = e.target as HTMLImageElement;
+            target.style.display = 'none';
+            target.parentElement?.insertAdjacentHTML('beforeend', getEmojiIcon(name));
+          }}
+        />
+      );
+    }
+    
+    return <span className="text-2xl">{getEmojiIcon(name)}</span>;
+  };
+
+  const getEmojiIcon = (connectorName: string): string => {
     switch (connectorName.toLowerCase()) {
       case 'metamask': return '🦊';
-      case 'coinbase wallet': return '🏪';
+      case 'coinbase wallet': return '🔵';
       case 'walletconnect': return '🔗';
-      case 'injected': return '🔌';
+      case 'injected': return '💉';
+      case 'keplr': return '🔮';
+      case 'okx wallet': return '⚫';
+      case 'phantom': return '👻';
       default: return '👛';
     }
   };
@@ -222,9 +262,9 @@ export default function WalletConnect({ isOpen, onClose, onConnect }: WalletConn
                     className="w-full flex items-center justify-between p-4 h-auto bg-gray-800 hover:bg-gray-700 border border-gray-600 disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">
+                      <div className="w-8 h-8 flex items-center justify-center">
                         {getConnectorIcon(connector.name)}
-                      </span>
+                      </div>
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{connector.name}</span>
                         <span className="text-xs text-gray-400">
@@ -257,9 +297,9 @@ export default function WalletConnect({ isOpen, onClose, onConnect }: WalletConn
                       <p className="text-xs text-gray-400">{connector?.name}</p>
                     </div>
                   </div>
-                  <span className="text-2xl">
+                  <div className="w-8 h-8 flex items-center justify-center">
                     {getConnectorIcon(connector?.name || '')}
-                  </span>
+                  </div>
                 </div>
 
                 {/* Address */}
