@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 interface NotificationFilter {
   chains: string[];
@@ -7,19 +8,6 @@ interface NotificationFilter {
   tokenNamePattern?: string;
   tokenSymbolPattern?: string;
 }
-
-interface Subscription {
-  id: string;
-  filters: NotificationFilter;
-  webhookUrl?: string;
-  email?: string;
-  telegram?: string;
-  createdAt: string;
-  lastNotified?: string;
-}
-
-// In production, use a database
-const subscriptions = new Map<string, Subscription>();
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,25 +22,18 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate subscription ID
-    const subscriptionId = crypto.randomUUID();
-
-    // Create subscription
-    const subscription: Subscription = {
-      id: subscriptionId,
-      filters,
-      webhookUrl,
-      email,
-      telegram,
-      createdAt: new Date().toISOString()
-    };
-
-    // Store subscription
-    subscriptions.set(subscriptionId, subscription);
+    const subscription = await prisma.subscription.create({
+      data: {
+        filters,
+        webhookUrl,
+        email,
+        telegram
+      }
+    });
 
     return NextResponse.json({
       success: true,
-      subscriptionId,
+      subscriptionId: subscription.id,
       message: 'Subscription created successfully'
     });
   } catch (error) {
@@ -64,9 +45,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  // List subscriptions (for debugging)
+  const subscriptions = await prisma.subscription.findMany();
   return NextResponse.json({
-    subscriptions: Array.from(subscriptions.values())
+    subscriptions
   });
 }
 
@@ -81,12 +62,13 @@ export async function DELETE(request: NextRequest) {
     }, { status: 400 });
   }
 
-  if (subscriptions.delete(subscriptionId)) {
+  try {
+    await prisma.subscription.delete({ where: { id: subscriptionId } });
     return NextResponse.json({
       success: true,
       message: 'Subscription deleted'
     });
-  } else {
+  } catch (error) {
     return NextResponse.json({
       success: false,
       error: 'Subscription not found'

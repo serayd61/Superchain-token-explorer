@@ -235,6 +235,32 @@ model Watchlist {
   @@map("watchlists")
 }
 
+model Subscription {
+  id            String   @id @default(cuid())
+  filters       Json
+  webhookUrl    String?
+  email         String?
+  telegram      String?
+  createdAt     DateTime @default(now())
+  lastNotified  DateTime?
+  logs          NotificationLog[]
+
+  @@map("subscriptions")
+}
+
+model NotificationLog {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  channel        String
+  error          String
+  attempts       Int      @default(1)
+  createdAt      DateTime @default(now())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@map("notification_logs")
+}
+
 // Alert/Notification ayarları
 model AlertSettings {
   id              String   @id @default(cuid())
